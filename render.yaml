@@ -19,8 +19,6 @@ services:
         value: /opt/render/project/src/temp
       - key: PYTHONPATH
         value: /opt/render/project/src
-      - key: PORT
-        value: "10000"
     healthCheckPath: /health
     
   # オプション: PostgreSQL データベース (将来の拡張用)
