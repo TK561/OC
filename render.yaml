@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: depth-estimation-backend
+    env: python
+    repo: https://github.com/kanalia7355/OC_display.git
+    branch: master
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: starter
+    region: frankfurt
+    autoDeploy: true
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: MODEL_CACHE_DIR
+        value: /opt/render/project/src/models
+      - key: TEMP_DIR
+        value: /opt/render/project/src/temp
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+      - key: PORT
+        value: "10000"
+    healthCheckPath: /health
+    
+  # オプション: PostgreSQL データベース (将来の拡張用)
+  # - type: pgsql
+  #   name: depth-app-db
+  #   databaseName: depth_app
+  #   user: depth_user
+  #   plan: starter
