@@ -16,6 +16,11 @@ logging.basicConfig(
 
 load_dotenv()
 
+# Debug port environment variable
+port_env = os.getenv("PORT")
+print(f"🔍 PORT environment variable: {port_env}")
+print(f"🔍 All environment variables containing 'PORT': {[k for k in os.environ.keys() if 'PORT' in k.upper()]}")
+
 app = FastAPI(
     title="Depth Estimation API",
     description="API for depth estimation and 3D visualization",
@@ -44,12 +49,18 @@ async def root():
     return {
         "message": "Depth Estimation API",
         "version": "1.0.0",
-        "status": "running"
+        "status": "running",
+        "port": os.getenv("PORT", "not set"),
+        "environment": settings.ENVIRONMENT
     }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "port": os.getenv("PORT", "not set"),
+        "host": "0.0.0.0"
+    }
 
 if __name__ == "__main__":
     import uvicorn
