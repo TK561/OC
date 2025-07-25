@@ -1,0 +1,6 @@
+Root Directory設定修正後のデプロイメント
+作成日時: 2025-07-25 18:55
+修正内容: 
+- Root Directory を frontend に設定
+- Framework設定を確認
+- Production設定の同期が必要

@@ -216,13 +216,19 @@ def main():
     port = int(os.getenv("PORT", 10000))
     logger.info(f"🚀 Starting Free Tier Depth Estimation API on port {port}")
     logger.info(f"💾 Initial memory usage: {get_memory_usage():.1f}MB")
+    logger.info(f"🔍 Environment: {os.getenv('ENVIRONMENT', 'not set')}")
     
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=port,
-        log_level="info"
-    )
+    try:
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=port,
+            log_level="info",
+            access_log=True
+        )
+    except Exception as e:
+        logger.error(f"❌ Server startup failed: {e}")
+        raise
 
 if __name__ == "__main__":
     main()
