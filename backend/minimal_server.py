@@ -92,9 +92,9 @@ async def estimate_depth_mock(file: UploadFile = File(...)):
         # Create simple mock depth data
         mock_response = {
             "success": True,
-            "depth_map_url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
-            "original_url": f"data:image/{file.content_type.split('/')[-1]};base64,{base64.b64encode(image_data[:100]).decode()}",
-            "model_used": "mock-model-for-cors-testing",
+            "depthMapUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
+            "originalUrl": f"data:image/{file.content_type.split('/')[-1]};base64,{base64.b64encode(image_data[:100]).decode()}",
+            "modelUsed": "mock-model-for-cors-testing",
             "resolution": "1x1",
             "note": "Mock data - CORS testing successful!"
         }

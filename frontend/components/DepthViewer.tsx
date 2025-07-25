@@ -98,7 +98,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => handleDownload(getImageUrl(depthResult.depth_map_url || depthResult.depthMapUrl || ''), 'depth_map.png')}
+            onClick={() => handleDownload(getImageUrl(depthResult.depthMapUrl || ''), 'depth_map.png')}
             className="btn-secondary text-sm"
           >
             💾 深度マップ保存
@@ -115,7 +115,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <h3 className="text-sm font-medium text-gray-700">元画像</h3>
               <div className="aspect-square bg-white rounded border overflow-hidden">
                 <img
-                  src={getImageUrl(depthResult.original_url || depthResult.originalUrl || '')}
+                  src={getImageUrl(depthResult.originalUrl || '')}
                   alt="Original"
                   className="w-full h-full object-contain"
                 />
@@ -127,7 +127,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <h3 className="text-sm font-medium text-gray-700">深度マップ</h3>
               <div className="aspect-square bg-white rounded border overflow-hidden">
                 <img
-                  src={getImageUrl(depthResult.depth_map_url || depthResult.depthMapUrl || '')}
+                  src={getImageUrl(depthResult.depthMapUrl || '')}
                   alt="Depth Map"
                   className="w-full h-full object-contain"
                 />
@@ -137,7 +137,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         ) : (
           <div className="aspect-video bg-white rounded border overflow-hidden">
             <img
-              src={getImageUrl(depthResult.depth_map_url || depthResult.depthMapUrl || '')}
+              src={getImageUrl(depthResult.depthMapUrl || '')}
               alt="Depth Map"
               className="w-full h-full object-contain"
             />
@@ -151,7 +151,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-gray-600">使用モデル:</span>
-            <span className="ml-2 font-medium">{depthResult.model_used || depthResult.modelUsed || 'Unknown'}</span>
+            <span className="ml-2 font-medium">{depthResult.modelUsed || 'Unknown'}</span>
           </div>
           <div>
             <span className="text-gray-600">解像度:</span>
