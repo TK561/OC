@@ -85,10 +85,14 @@ export default function Home() {
               深度推定・3D可視化アプリ
             </h1>
             <div className="flex items-center space-x-4">
+              <label htmlFor="model-select" className="sr-only">深度推定モデル選択</label>
               <select
+                id="model-select"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 className="input-field text-sm"
+                title="深度推定モデル選択"
+                aria-label="深度推定に使用するモデルを選択してください"
               >
                 <option value="Intel/dpt-hybrid-midas">MiDaS (高速)</option>
                 <option value="Intel/dpt-large">DPT-Large (高精度)</option>

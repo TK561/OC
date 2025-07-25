@@ -23,5 +23,5 @@ COPY . .
 # Expose port
 EXPOSE 10000
 
-# Use the free tier optimized server
-CMD ["python", "free_tier_server.py"]
+# Use the minimal server for CORS debugging
+CMD ["python", "minimal_server.py"]

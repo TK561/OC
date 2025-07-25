@@ -156,6 +156,8 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
         accept="image/*"
         onChange={handleFileSelect}
         className="hidden"
+        title="画像ファイル選択"
+        aria-label="画像ファイルを選択してください"
       />
 
       {/* Action Buttons */}
