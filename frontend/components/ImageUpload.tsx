@@ -151,6 +151,8 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
 
       {/* Hidden File Input */}
       <input
+        id="file-input"
+        name="file-input"
         ref={fileInputRef}
         type="file"
         accept="image/*"

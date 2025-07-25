@@ -108,6 +108,11 @@ async def estimate_depth_mock(file: UploadFile = File(...)):
         response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
         response.headers["Access-Control-Allow-Headers"] = "*"
         
+        # Security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Content-Type"] = "application/json; charset=utf-8"
+        
         return response
         
     except Exception as e:
@@ -126,6 +131,11 @@ async def estimate_depth_mock(file: UploadFile = File(...)):
         error_response.headers["Access-Control-Allow-Origin"] = "*"
         error_response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS" 
         error_response.headers["Access-Control-Allow-Headers"] = "*"
+        
+        # Security headers
+        error_response.headers["X-Content-Type-Options"] = "nosniff"
+        error_response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        error_response.headers["Content-Type"] = "application/json; charset=utf-8"
         
         return error_response
 
