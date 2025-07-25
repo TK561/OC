@@ -88,14 +88,52 @@ async def estimate_depth_mock(file: UploadFile = File(...)):
         
         # Return mock successful response
         import base64
+        from PIL import Image
+        import numpy as np
+        import io
         
-        # Create simple mock depth data
+        # Create a more visible mock depth map (256x256 gradient)
+        width, height = 256, 256
+        depth_array = np.zeros((height, width, 3), dtype=np.uint8)
+        
+        # Create a gradient pattern to simulate depth
+        for y in range(height):
+            for x in range(width):
+                # Create circular gradient pattern
+                center_x, center_y = width // 2, height // 2
+                distance = np.sqrt((x - center_x)**2 + (y - center_y)**2)
+                max_distance = np.sqrt(center_x**2 + center_y**2)
+                
+                # Normalize distance to 0-255 range
+                intensity = int(255 * (1 - distance / max_distance))
+                
+                # Create depth color map (blue = near, red = far)
+                if intensity > 200:
+                    depth_array[y, x] = [0, 0, 255]  # Blue (near)
+                elif intensity > 150:
+                    depth_array[y, x] = [0, 255, 255]  # Cyan
+                elif intensity > 100:
+                    depth_array[y, x] = [0, 255, 0]  # Green
+                elif intensity > 50:
+                    depth_array[y, x] = [255, 255, 0]  # Yellow
+                else:
+                    depth_array[y, x] = [255, 0, 0]  # Red (far)
+        
+        # Convert to PIL Image and then to base64
+        depth_img = Image.fromarray(depth_array)
+        depth_buffer = io.BytesIO()
+        depth_img.save(depth_buffer, format='PNG')
+        depth_b64 = base64.b64encode(depth_buffer.getvalue()).decode()
+        
+        # Create mock response with original image data
+        orig_b64 = base64.b64encode(image_data).decode()
+        
         mock_response = {
             "success": True,
-            "depthMapUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==",
-            "originalUrl": f"data:image/{file.content_type.split('/')[-1]};base64,{base64.b64encode(image_data[:100]).decode()}",
+            "depthMapUrl": f"data:image/png;base64,{depth_b64}",
+            "originalUrl": f"data:image/{file.content_type.split('/')[-1]};base64,{orig_b64}",
             "modelUsed": "mock-model-for-cors-testing",
-            "resolution": "1x1",
+            "resolution": f"{width}x{height}",
             "note": "Mock data - CORS testing successful!"
         }
         

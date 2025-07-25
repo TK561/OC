@@ -71,11 +71,15 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
 
   // Check if URL is already a data URL or full URL
   const getImageUrl = (url: string) => {
+    console.log('Processing image URL:', url.substring(0, 50) + '...')
     if (url.startsWith('data:') || url.startsWith('http')) {
+      console.log('Using direct URL')
       return url
     }
     const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
-    return `${baseUrl}${url}`
+    const fullUrl = `${baseUrl}${url}`
+    console.log('Using base URL:', fullUrl)
+    return fullUrl
   }
 
   return (
@@ -118,6 +122,10 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
                   src={getImageUrl(depthResult.originalUrl || '')}
                   alt="Original"
                   className="w-full h-full object-contain"
+                  onError={(e) => {
+                    console.error('Failed to load original image:', e)
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Original Image</text></svg>'
+                  }}
                 />
               </div>
             </div>
@@ -130,6 +138,10 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
                   src={getImageUrl(depthResult.depthMapUrl || '')}
                   alt="Depth Map"
                   className="w-full h-full object-contain"
+                  onError={(e) => {
+                    console.error('Failed to load depth map:', e)
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Depth Map</text></svg>'
+                  }}
                 />
               </div>
             </div>
@@ -140,6 +152,10 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               src={getImageUrl(depthResult.depthMapUrl || '')}
               alt="Depth Map"
               className="w-full h-full object-contain"
+              onError={(e) => {
+                console.error('Failed to load depth map (single view):', e)
+                e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Depth Map</text></svg>'
+              }}
             />
           </div>
         )}
