@@ -12,8 +12,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements_free.txt .
 
 # Install Python dependencies with cache optimization
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements_free.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements_free.txt && \
+    pip list
 
 # Copy application code
 COPY . .
