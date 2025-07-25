@@ -22,13 +22,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware - Allow all origins for free tier simplicity
+# CORS middleware - Explicit configuration for Vercel
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for free tier
-    allow_credentials=False,  # Must be False when allow_origins is "*"
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_origins=[
+        "https://ocdemo.vercel.app",
+        "https://*.vercel.app",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Global variables for lazy loading
@@ -118,6 +124,20 @@ async def cors_test():
         "cors_enabled": True
     }
 
+@app.get("/api/depth/status")
+async def depth_status():
+    """Check depth estimation API status"""
+    global depth_estimator
+    memory_mb = get_memory_usage()
+    
+    return {
+        "status": "available",
+        "model_loaded": depth_estimator is not None,
+        "memory_usage_mb": round(memory_mb, 1),
+        "memory_limit_mb": 512,
+        "available_models": list(available_models.keys())
+    }
+
 @app.get("/api/depth/models")
 async def get_available_models():
     """Get list of available models"""
@@ -138,15 +158,35 @@ async def estimate_depth(
     try:
         logger.info(f"🔍 Starting depth estimation (Memory: {get_memory_usage():.1f}MB)")
         
+        # Memory check before processing
+        current_memory = get_memory_usage()
+        if current_memory > 450:  # Close to 512MB limit
+            logger.warning(f"⚠️ High memory usage: {current_memory:.1f}MB")
+            gc.collect()
+            
         # Validate file
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="Invalid image format")
         
-        # Read image data
+        # Check file size (limit to 10MB for free tier)
+        file_size = 0
         image_data = await file.read()
+        file_size = len(image_data)
         
-        # Load model lazily
-        estimator = load_depth_estimator()
+        if file_size > 10 * 1024 * 1024:  # 10MB limit
+            raise HTTPException(status_code=400, detail="File too large. Please use image smaller than 10MB.")
+        
+        logger.info(f"📁 Processing image: {file_size / 1024:.1f}KB")
+        
+        # Load model lazily with error handling
+        try:
+            estimator = load_depth_estimator()
+        except Exception as model_error:
+            logger.error(f"❌ Model loading failed: {model_error}")
+            raise HTTPException(
+                status_code=503, 
+                detail="Service temporarily unavailable. Model loading failed. Please try again in a moment."
+            )
         
         # Import processing libraries
         from PIL import Image
