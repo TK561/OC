@@ -56,12 +56,24 @@ async def estimate_depth(
             original_image.save(tmp_orig.name)
             orig_path = tmp_orig.name
         
+        # Move files to temp directory with proper names
+        temp_depth_name = f"depth_{os.path.basename(depth_path)}"
+        temp_orig_name = f"orig_{os.path.basename(orig_path)}"
+        
+        temp_depth_final = os.path.join(settings.TEMP_DIR, temp_depth_name)
+        temp_orig_final = os.path.join(settings.TEMP_DIR, temp_orig_name)
+        
+        import shutil
+        shutil.move(depth_path, temp_depth_final)
+        shutil.move(orig_path, temp_orig_final)
+        
         return JSONResponse({
             "success": True,
-            "depth_map_url": f"/temp/{os.path.basename(depth_path)}",
-            "original_url": f"/temp/{os.path.basename(orig_path)}",
-            "model_used": model_name or settings.DEFAULT_DEPTH_MODEL,
-            "resolution": f"{original_image.width}x{original_image.height}"
+            "depthMapUrl": f"/temp/{temp_depth_name}",
+            "originalUrl": f"/temp/{temp_orig_name}",
+            "modelUsed": model_name or settings.DEFAULT_DEPTH_MODEL,
+            "resolution": f"{original_image.width}x{original_image.height}",
+            "note": "深度マップが正常に生成されました"
         })
         
     except Exception as e:
