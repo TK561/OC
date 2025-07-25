@@ -1,0 +1,25 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install system dependencies (minimal)
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements_free.txt .
+
+# Install Python dependencies with cache optimization
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements_free.txt
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 10000
+
+# Use the free tier optimized server
+CMD ["python", "free_tier_server.py"]

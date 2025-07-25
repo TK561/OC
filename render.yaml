@@ -2,7 +2,7 @@ services:
   - type: web
     name: depth-estimation-backend
     env: python
-    repo: https://github.com/kanalia7355/OC_display.git
+    repo: https://github.com/TK561/OC.git
     branch: master
     rootDir: backend
     buildCommand: |
