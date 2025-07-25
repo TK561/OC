@@ -170,8 +170,9 @@ function PointCloud({ originalImage, depthResult, settings }: PointCloudProps) {
       colors[i + 2] = color.b
     }
 
-    colorAttribute.set(colors)
-    colorAttribute.needsUpdate = true
+    // Create new buffer attribute with updated colors
+    const newColorAttribute = new THREE.BufferAttribute(colors, 3)
+    geometry.setAttribute('color', newColorAttribute)
   }, [settings.colorMap, pointsData, getColorFromDepth])
 
   if (!pointsData) {
