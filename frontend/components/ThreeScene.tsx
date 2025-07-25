@@ -170,7 +170,7 @@ function PointCloud({ originalImage, depthResult, settings }: PointCloudProps) {
       colors[i + 2] = color.b
     }
 
-    colorAttribute.array = colors
+    colorAttribute.set(colors)
     colorAttribute.needsUpdate = true
   }, [settings.colorMap, pointsData, getColorFromDepth])
 
