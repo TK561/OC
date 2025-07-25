@@ -22,12 +22,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
+# CORS middleware - Allow all origins for free tier simplicity
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your Vercel domain
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=["*"],  # Allow all origins for free tier
+    allow_credentials=False,  # Must be False when allow_origins is "*"
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -107,6 +107,15 @@ async def health_check():
         "memory_usage_mb": round(memory_mb, 1),
         "port": os.getenv("PORT", "not set"),
         "host": "0.0.0.0"
+    }
+
+@app.get("/cors-test")
+async def cors_test():
+    """CORS test endpoint"""
+    return {
+        "message": "CORS test successful",
+        "timestamp": "2025-07-25T19:30:00Z",
+        "cors_enabled": True
     }
 
 @app.get("/api/depth/models")
