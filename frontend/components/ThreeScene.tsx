@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera, Grid, AxesHelper } from '@react-three/drei'
+import { OrbitControls, PerspectiveCamera, Grid } from '@react-three/drei'
 import * as THREE from 'three'
 import { ViewerSettings, DepthEstimationResponse } from '@/shared/types'
 
@@ -238,7 +238,7 @@ function SceneContent({ originalImage, depthResult, settings }: ThreeSceneProps)
       )}
       
       {/* Axes Helper */}
-      {settings.showAxes && <AxesHelper size={0.1} />}
+      {settings.showAxes && <axesHelper args={[0.1]} />}
       
       {/* Grid */}
       <Grid
