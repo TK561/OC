@@ -208,9 +208,20 @@ async def estimate_depth(
         
     except Exception as e:
         logger.error(f"❌ Depth estimation error: {str(e)}")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
         # Clean up on error
         gc.collect()
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+        
+        # Return more detailed error information
+        error_detail = {
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "memory_usage_mb": round(get_memory_usage(), 1),
+            "suggestion": "画像サイズを小さくするか、しばらく待ってから再試行してください"
+        }
+        raise HTTPException(status_code=500, detail=error_detail)
 
 def main():
     port = int(os.getenv("PORT", 10000))

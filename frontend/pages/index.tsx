@@ -44,13 +44,24 @@ export default function Home() {
       
       formData.append('model_name', selectedModel)
       
+      console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
+      console.log('Making request to:', `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/depth/estimate`)
+      
       const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/depth/estimate`, {
         method: 'POST',
         body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
       })
 
+      console.log('Response status:', apiResponse.status)
+      console.log('Response headers:', Object.fromEntries(apiResponse.headers.entries()))
+
       if (!apiResponse.ok) {
-        throw new Error(`HTTP error! status: ${apiResponse.status}`)
+        const errorText = await apiResponse.text()
+        console.error('API Error Response:', errorText)
+        throw new Error(`HTTP error! status: ${apiResponse.status}, message: ${errorText}`)
       }
 
       const result: DepthEstimationResponse = await apiResponse.json()
