@@ -10,16 +10,19 @@ from .config import settings
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO if settings.DEBUG else logging.WARNING,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# Debug port environment variable
-port_env = os.getenv("PORT")
-print(f"🔍 PORT environment variable: {port_env}")
-print(f"🔍 All environment variables containing 'PORT': {[k for k in os.environ.keys() if 'PORT' in k.upper()]}")
+# Log startup information
+logger.info("=" * 50)
+logger.info("🚀 Initializing Depth Estimation API")
+logger.info(f"📍 Environment: {settings.ENVIRONMENT}")
+logger.info(f"📍 PORT: {os.getenv('PORT', 'not set')}")
+logger.info("=" * 50)
 
 app = FastAPI(
     title="Depth Estimation API",

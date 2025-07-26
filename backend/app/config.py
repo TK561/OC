@@ -10,11 +10,14 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEBUG: bool = ENVIRONMENT == "development"
     
+    # CORS設定 - Renderデプロイ用に更新
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "https://*.vercel.app",
-        "https://vercel.app"
+        "https://vercel.app",
+        "https://depth-estimation-backend.onrender.com",
+        "https://*.onrender.com"
     ]
     
     MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB

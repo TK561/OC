@@ -5,53 +5,58 @@ Render-optimized server startup script
 import os
 import uvicorn
 import sys
+import logging
 
-# Ensure the app module is in Python path
-sys.path.insert(0, '/opt/render/project/src')
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def main():
-    # Get port from environment
-    port = os.getenv("PORT")
+    # Get port from environment - Render sets this automatically
+    port = os.getenv("PORT", "10000")
     
-    print(f"🚀 Starting Depth Estimation API")
-    print(f"🔍 PORT environment variable: {port}")
-    print(f"🔍 Python path: {sys.path}")
-    print(f"🔍 Working directory: {os.getcwd()}")
-    print(f"🔍 Files in current directory: {os.listdir('.')}")
-    
-    if port is None:
-        print("❌ PORT environment variable not set!")
-        port = "10000"  # Fallback for Render
+    logger.info("=" * 50)
+    logger.info("🚀 Starting Depth Estimation API for Render")
+    logger.info(f"📍 PORT: {port}")
+    logger.info(f"📍 Working directory: {os.getcwd()}")
+    logger.info(f"📍 Python executable: {sys.executable}")
+    logger.info("=" * 50)
     
     try:
         port_int = int(port)
-        print(f"✅ Using port: {port_int}")
     except ValueError:
-        print(f"❌ Invalid port value: {port}")
+        logger.error(f"Invalid port value: {port}, using default 10000")
         port_int = 10000
     
-    # Import the app
+    # Import the app with better error handling
     try:
+        # Try direct import first
         from app.main import app
-        print("✅ Successfully imported app")
+        logger.info("✅ Successfully imported app directly")
     except ImportError as e:
-        print(f"❌ Failed to import app: {e}")
-        print(f"🔍 Trying alternative import...")
+        logger.warning(f"Direct import failed: {e}")
         try:
-            import sys
-            sys.path.append('/opt/render/project/src')
+            # Add current directory to Python path
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            sys.path.insert(0, current_dir)
             from app.main import app
-            print("✅ Successfully imported app with modified path")
+            logger.info("✅ Successfully imported app with modified path")
         except ImportError as e2:
-            print(f"❌ Failed alternative import: {e2}")
+            logger.error(f"❌ Failed to import app: {e2}")
+            logger.error(f"Python path: {sys.path}")
+            logger.error(f"Directory contents: {os.listdir('.')}")
             sys.exit(1)
     
-    # Start the server
+    # Start the server with proper configuration
+    logger.info(f"🌐 Starting server on 0.0.0.0:{port_int}")
+    
     uvicorn.run(
         app,
         host="0.0.0.0",
         port=port_int,
-        log_level="info"
+        log_level="info",
+        access_log=True,
+        use_colors=True
     )
 
 if __name__ == "__main__":
