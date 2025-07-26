@@ -23,5 +23,5 @@ COPY . .
 # Expose port
 EXPOSE 10000
 
-# Use the main API server
-CMD ["python", "startup.py"]
+# Use minimal server for free tier
+CMD ["python", "minimal_server.py"]

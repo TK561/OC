@@ -58,11 +58,28 @@ async def estimate_depth(
         # Create estimator per request for memory efficiency
         depth_estimator = DepthEstimator()
         
-        depth_map, original_image = await depth_estimator.predict(
-            image_data, 
-            model_name=model_name or settings.LIGHTWEIGHT_MODEL,
-            target_resolution=resolution
-        )
+        try:
+            depth_map, original_image = await depth_estimator.predict(
+                image_data, 
+                model_name=model_name or settings.LIGHTWEIGHT_MODEL,
+                target_resolution=resolution
+            )
+        except Exception as pred_error:
+            logger.error(f"Prediction error: {str(pred_error)}")
+            # Return a simple error response with CORS headers
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "success": False,
+                    "error": "Service temporarily unavailable due to memory constraints",
+                    "detail": str(pred_error)
+                },
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "*"
+                }
+            )
         
         with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp_depth:
             depth_map.save(tmp_depth.name)

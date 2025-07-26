@@ -1,200 +1,134 @@
 #!/usr/bin/env python3
 """
-最小構成のテストサーバー（CORS問題解決用）
+Minimal server for Render free tier - uses mock depth estimation
 """
 import os
-import uvicorn
+import sys
 import logging
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import numpy as np
+from PIL import Image
+import io
+import tempfile
 
+# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Minimal Depth API Test")
+app = FastAPI(title="Minimal Depth Estimation API")
 
-# CORS設定 - 最も許可的な設定
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # Important: False when allow_origins=["*"]
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]
 )
 
+# Create temp directory
+os.makedirs("./temp", exist_ok=True)
+
 @app.get("/")
-def read_root():
-    return {
-        "message": "Minimal server is running!",
-        "port": os.getenv("PORT", "not set"),
-        "environment": os.getenv("ENVIRONMENT", "not set"),
-        "python_path": os.getenv("PYTHONPATH", "not set")
-    }
+async def root():
+    return {"message": "Minimal Depth Estimation API", "status": "running"}
 
 @app.get("/health")
-def health_check():
-    return {
-        "status": "healthy",
-        "port": os.getenv("PORT", "not set"),
-        "pid": os.getpid()
-    }
-
-@app.get("/test")
-def test_endpoint():
-    return {"test": "success", "port": os.getenv("PORT")}
-
-@app.get("/cors-test")
-async def cors_test():
-    """CORS test endpoint"""
-    return {
-        "message": "CORS working correctly",
-        "cors_enabled": True,
-        "allow_origin": "*",
-        "timestamp": "2025-07-25"
-    }
+async def health():
+    return {"status": "healthy"}
 
 @app.options("/api/depth/estimate")
-async def options_estimate():
-    """Handle preflight requests explicitly"""
+async def estimate_options():
     return JSONResponse(
-        content={"message": "CORS preflight OK"},
+        content={"message": "OK"},
         headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-            "Access-Control-Max-Age": "3600"
+            "Access-Control-Allow-Headers": "*"
         }
     )
 
 @app.post("/api/depth/estimate")
-async def estimate_depth_mock(file: UploadFile = File(...)):
+async def estimate_depth(file: UploadFile = File(...)):
     """
-    Mock depth estimation endpoint to test CORS functionality
+    Mock depth estimation for free tier - creates gradient depth map
     """
     try:
-        logger.info("🔍 Received depth estimation request")
-        
-        # Validate file
-        if not file.content_type or not file.content_type.startswith('image/'):
-            raise HTTPException(status_code=400, detail="Invalid image format")
-        
-        # Read image data
+        # Read and validate image
         image_data = await file.read()
-        file_size = len(image_data)
+        if len(image_data) > 5 * 1024 * 1024:  # 5MB limit
+            raise HTTPException(status_code=400, detail="File too large")
         
-        logger.info(f"📁 Processing image: {file_size / 1024:.1f}KB")
+        # Open image
+        image = Image.open(io.BytesIO(image_data)).convert("RGB")
         
-        # Return mock successful response
-        import base64
-        from PIL import Image
-        import numpy as np
-        import io
+        # Resize to small size
+        max_size = 256
+        image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
         
-        # Create a more visible mock depth map (256x256 gradient)
-        width, height = 256, 256
-        depth_array = np.zeros((height, width, 3), dtype=np.uint8)
+        # Create simple gradient depth map
+        width, height = image.size
+        depth_array = np.zeros((height, width), dtype=np.float32)
         
-        # Create a gradient pattern to simulate depth
+        # Simple gradient from top to bottom
         for y in range(height):
-            for x in range(width):
-                # Create circular gradient pattern
-                center_x, center_y = width // 2, height // 2
-                distance = np.sqrt((x - center_x)**2 + (y - center_y)**2)
-                max_distance = np.sqrt(center_x**2 + center_y**2)
-                
-                # Normalize distance to 0-255 range
-                intensity = int(255 * (1 - distance / max_distance))
-                
-                # Create depth color map (blue = near, red = far)
-                if intensity > 200:
-                    depth_array[y, x] = [0, 0, 255]  # Blue (near)
-                elif intensity > 150:
-                    depth_array[y, x] = [0, 255, 255]  # Cyan
-                elif intensity > 100:
-                    depth_array[y, x] = [0, 255, 0]  # Green
-                elif intensity > 50:
-                    depth_array[y, x] = [255, 255, 0]  # Yellow
-                else:
-                    depth_array[y, x] = [255, 0, 0]  # Red (far)
+            depth_array[y, :] = y / height
         
-        # Convert to PIL Image and then to base64
-        depth_img = Image.fromarray(depth_array)
-        depth_buffer = io.BytesIO()
-        depth_img.save(depth_buffer, format='PNG')
-        depth_b64 = base64.b64encode(depth_buffer.getvalue()).decode()
+        # Add some noise for realism
+        noise = np.random.normal(0, 0.05, (height, width))
+        depth_array = np.clip(depth_array + noise, 0, 1)
         
-        # Create mock response with original image data
-        orig_b64 = base64.b64encode(image_data).decode()
+        # Convert to image
+        depth_image = Image.fromarray((depth_array * 255).astype(np.uint8))
+        depth_image = depth_image.convert("RGB")
         
-        mock_response = {
-            "success": True,
-            "depthMapUrl": f"data:image/png;base64,{depth_b64}",
-            "originalUrl": f"data:image/{file.content_type.split('/')[-1]};base64,{orig_b64}",
-            "modelUsed": "mock-model-for-cors-testing",
-            "resolution": f"{width}x{height}",
-            "note": "Mock data - CORS testing successful!"
-        }
+        # Save images
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir='./temp') as tmp_depth:
+            depth_image.save(tmp_depth.name)
+            depth_name = os.path.basename(tmp_depth.name)
         
-        logger.info("✅ Mock depth estimation completed")
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir='./temp') as tmp_orig:
+            image.save(tmp_orig.name)
+            orig_name = os.path.basename(tmp_orig.name)
         
-        response = JSONResponse(mock_response)
-        
-        # Explicit CORS headers
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-        
-        # Security headers
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Content-Type"] = "application/json; charset=utf-8"
-        
-        return response
-        
-    except Exception as e:
-        logger.error(f"❌ Error in mock depth estimation: {str(e)}")
-        
-        error_response = JSONResponse(
-            status_code=500,
+        return JSONResponse(
             content={
-                "success": False,
-                "error": str(e),
-                "note": "Mock API error - debugging in progress"
+                "success": True,
+                "depthMapUrl": f"/temp/{depth_name}",
+                "originalUrl": f"/temp/{orig_name}",
+                "modelUsed": "gradient-mock",
+                "resolution": f"{width}x{height}",
+                "note": "Mock depth map (free tier)"
+            },
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "*"
             }
         )
         
-        # Explicit CORS headers even for errors
-        error_response.headers["Access-Control-Allow-Origin"] = "*"
-        error_response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS" 
-        error_response.headers["Access-Control-Allow-Headers"] = "*"
-        
-        # Security headers
-        error_response.headers["X-Content-Type-Options"] = "nosniff"
-        error_response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        error_response.headers["Content-Type"] = "application/json; charset=utf-8"
-        
-        return error_response
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)},
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "*"
+            }
+        )
+
+@app.get("/api/depth/models")
+async def get_models():
+    return {
+        "models": ["gradient-mock"],
+        "default": "gradient-mock"
+    }
 
 if __name__ == "__main__":
-    port_env = os.getenv("PORT")
-    print(f"🚀 Starting minimal server")
-    print(f"🔍 PORT environment variable: {port_env}")
-    print(f"🔍 Working directory: {os.getcwd()}")
-    print(f"🔍 Environment: {os.getenv('ENVIRONMENT', 'not set')}")
-    
-    if port_env is None:
-        print("❌ PORT not set, using fallback 10000")
-        port = 10000
-    else:
-        port = int(port_env)
-        print(f"✅ Using PORT: {port}")
-    
-    # サーバー起動
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=port,
-        log_level="info"
-    )
+    import uvicorn
+    port = int(os.getenv("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
