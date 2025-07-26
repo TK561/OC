@@ -21,6 +21,18 @@ router = APIRouter()
 
 # No global depth_estimator - create per request for memory efficiency
 
+@router.options("/estimate")
+async def estimate_depth_options():
+    """Handle preflight requests"""
+    return JSONResponse(
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*"
+        }
+    )
+
 @router.post("/estimate")
 async def estimate_depth(
     file: UploadFile = File(...),
@@ -88,6 +100,18 @@ async def estimate_depth(
         if depth_estimator:
             depth_estimator.clear_cache()
             del depth_estimator
+
+@router.options("/generate-3d")
+async def generate_3d_options():
+    """Handle preflight requests"""
+    return JSONResponse(
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*"
+        }
+    )
 
 @router.post("/generate-3d")
 async def generate_3d(
