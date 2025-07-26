@@ -75,6 +75,15 @@ async def health_check():
         "host": "0.0.0.0"
     }
 
+@app.get("/cors-test")
+async def cors_test():
+    """CORS test endpoint"""
+    return {
+        "message": "CORS is working!",
+        "timestamp": "2025-07-26",
+        "cors_headers": "should be present"
+    }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
