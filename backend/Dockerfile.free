@@ -23,5 +23,5 @@ COPY . .
 # Expose port
 EXPOSE 10000
 
-# Use the minimal server for CORS debugging
-CMD ["python", "minimal_server.py"]
+# Use the main API server
+CMD ["python", "startup.py"]
