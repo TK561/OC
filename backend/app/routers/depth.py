@@ -130,3 +130,28 @@ async def get_available_models():
         "models": settings.AVAILABLE_MODELS,
         "default": settings.DEFAULT_DEPTH_MODEL
     }
+
+@router.post("/test")
+async def test_upload(file: UploadFile = File(...)):
+    """
+    Test file upload without processing (for debugging)
+    """
+    try:
+        if not validate_image(file):
+            raise HTTPException(status_code=400, detail="Invalid image format")
+        
+        image_data = await file.read()
+        file_size = len(image_data)
+        
+        return JSONResponse({
+            "success": True,
+            "message": "File upload successful",
+            "filename": file.filename,
+            "content_type": file.content_type,
+            "size_bytes": file_size,
+            "size_kb": round(file_size / 1024, 2)
+        })
+        
+    except Exception as e:
+        logger.error(f"Test upload error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Upload test failed: {str(e)}")
