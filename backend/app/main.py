@@ -44,7 +44,22 @@ app.add_middleware(
 # Add explicit CORS headers for all responses
 @app.middleware("http")
 async def add_cors_headers(request, call_next):
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        # Add CORS headers to error responses
+        from fastapi.responses import JSONResponse
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": str(e)},
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "*"
+            }
+        )
+        return response
+    
     response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "*"

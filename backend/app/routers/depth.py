@@ -83,14 +83,21 @@ async def estimate_depth(
         shutil.move(depth_path, temp_depth_final)
         shutil.move(orig_path, temp_orig_final)
         
-        return JSONResponse({
-            "success": True,
-            "depthMapUrl": f"/temp/{temp_depth_name}",
-            "originalUrl": f"/temp/{temp_orig_name}",
-            "modelUsed": model_name or settings.LIGHTWEIGHT_MODEL,
-            "resolution": f"{original_image.width}x{original_image.height}",
-            "note": "深度マップが正常に生成されました"
-        })
+        return JSONResponse(
+            content={
+                "success": True,
+                "depthMapUrl": f"/temp/{temp_depth_name}",
+                "originalUrl": f"/temp/{temp_orig_name}",
+                "modelUsed": model_name or settings.LIGHTWEIGHT_MODEL,
+                "resolution": f"{original_image.width}x{original_image.height}",
+                "note": "深度マップが正常に生成されました"
+            },
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "*"
+            }
+        )
         
     except Exception as e:
         logger.error(f"Depth estimation error: {str(e)}")
