@@ -47,6 +47,12 @@ backend/temp/
 backend/logs/
 backend/*.log
 
+# Environment variables (Security)
+.env
+.env.local
+.env.development
+.env.production
+
 # Models and temporary files
 *.pt
 *.pth

@@ -44,13 +44,24 @@ export default function Home() {
       
       formData.append('model_name', selectedModel)
       
+      console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
+      console.log('Making request to:', `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/depth/estimate`)
+      
       const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/depth/estimate`, {
         method: 'POST',
         body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
       })
 
+      console.log('Response status:', apiResponse.status)
+      console.log('Response headers:', Object.fromEntries(apiResponse.headers.entries()))
+
       if (!apiResponse.ok) {
-        throw new Error(`HTTP error! status: ${apiResponse.status}`)
+        const errorText = await apiResponse.text()
+        console.error('API Error Response:', errorText)
+        throw new Error(`HTTP error! status: ${apiResponse.status}, message: ${errorText}`)
       }
 
       const result: DepthEstimationResponse = await apiResponse.json()
@@ -74,10 +85,14 @@ export default function Home() {
               深度推定・3D可視化アプリ
             </h1>
             <div className="flex items-center space-x-4">
+              <label htmlFor="model-select" className="sr-only">深度推定モデル選択</label>
               <select
+                id="model-select"
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
                 className="input-field text-sm"
+                title="深度推定モデル選択"
+                aria-label="深度推定に使用するモデルを選択してください"
               >
                 <option value="Intel/dpt-hybrid-midas">MiDaS (高速)</option>
                 <option value="Intel/dpt-large">DPT-Large (高精度)</option>

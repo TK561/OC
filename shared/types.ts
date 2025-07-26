@@ -10,6 +10,11 @@ export interface DepthEstimationResponse {
   originalUrl: string;
   modelUsed: string;
   resolution: string;
+  note?: string; // For mock API messages
+  // Support snake_case for backend compatibility
+  depth_map_url?: string;
+  original_url?: string;
+  model_used?: string;
 }
 
 export interface PointCloudRequest {

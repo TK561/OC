@@ -69,15 +69,28 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
     )
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+  // Check if URL is already a data URL or full URL
+  const getImageUrl = (url: string) => {
+    console.log('Processing image URL:', url.substring(0, 50) + '...')
+    if (url.startsWith('data:') || url.startsWith('http')) {
+      console.log('Using direct URL')
+      return url
+    }
+    const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+    const fullUrl = `${baseUrl}${url}`
+    console.log('Using base URL:', fullUrl)
+    return fullUrl
+  }
 
   return (
     <div className="space-y-4">
       {/* Controls */}
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <label className="flex items-center space-x-2">
+          <label htmlFor="comparison-toggle" className="flex items-center space-x-2">
             <input
+              id="comparison-toggle"
+              name="comparison-toggle"
               type="checkbox"
               checked={showComparison}
               onChange={(e) => setShowComparison(e.target.checked)}
@@ -89,7 +102,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => handleDownload(`${baseUrl}${depthResult.depthMapUrl}`, 'depth_map.png')}
+            onClick={() => handleDownload(getImageUrl(depthResult.depthMapUrl || ''), 'depth_map.png')}
             className="btn-secondary text-sm"
           >
             💾 深度マップ保存
@@ -106,9 +119,13 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <h3 className="text-sm font-medium text-gray-700">元画像</h3>
               <div className="aspect-square bg-white rounded border overflow-hidden">
                 <img
-                  src={`${baseUrl}${depthResult.originalUrl}`}
+                  src={getImageUrl(depthResult.originalUrl || '')}
                   alt="Original"
                   className="w-full h-full object-contain"
+                  onError={(e) => {
+                    console.error('Failed to load original image:', e)
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Original Image</text></svg>'
+                  }}
                 />
               </div>
             </div>
@@ -118,9 +135,13 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <h3 className="text-sm font-medium text-gray-700">深度マップ</h3>
               <div className="aspect-square bg-white rounded border overflow-hidden">
                 <img
-                  src={`${baseUrl}${depthResult.depthMapUrl}`}
+                  src={getImageUrl(depthResult.depthMapUrl || '')}
                   alt="Depth Map"
                   className="w-full h-full object-contain"
+                  onError={(e) => {
+                    console.error('Failed to load depth map:', e)
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Depth Map</text></svg>'
+                  }}
                 />
               </div>
             </div>
@@ -128,9 +149,13 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         ) : (
           <div className="aspect-video bg-white rounded border overflow-hidden">
             <img
-              src={`${baseUrl}${depthResult.depthMapUrl}`}
+              src={getImageUrl(depthResult.depthMapUrl || '')}
               alt="Depth Map"
               className="w-full h-full object-contain"
+              onError={(e) => {
+                console.error('Failed to load depth map (single view):', e)
+                e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Depth Map</text></svg>'
+              }}
             />
           </div>
         )}
@@ -142,12 +167,18 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-gray-600">使用モデル:</span>
-            <span className="ml-2 font-medium">{depthResult.modelUsed}</span>
+            <span className="ml-2 font-medium">{depthResult.modelUsed || 'Unknown'}</span>
           </div>
           <div>
             <span className="text-gray-600">解像度:</span>
-            <span className="ml-2 font-medium">{depthResult.resolution}</span>
+            <span className="ml-2 font-medium">{depthResult.resolution || 'Unknown'}</span>
           </div>
+          {depthResult.note && (
+            <div className="col-span-2">
+              <span className="text-gray-600">備考:</span>
+              <span className="ml-2 font-medium text-blue-600">{depthResult.note}</span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -14,10 +14,12 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://ocdemo.vercel.app",
         "https://*.vercel.app",
         "https://vercel.app",
         "https://depth-estimation-backend.onrender.com",
-        "https://*.onrender.com"
+        "https://*.onrender.com",
+        "*"  # 開発中は全て許可
     ]
     
     MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB

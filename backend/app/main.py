@@ -1,6 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.base import BaseHTTPMiddleware
 import os
 import logging
 from dotenv import load_dotenv
@@ -24,6 +25,23 @@ logger.info(f"📍 Environment: {settings.ENVIRONMENT}")
 logger.info(f"📍 PORT: {os.getenv('PORT', 'not set')}")
 logger.info("=" * 50)
 
+# Security headers middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
+        # Optimize cache control for different content types
+        if request.url.path.startswith("/temp/"):
+            response.headers["Cache-Control"] = "public, max-age=3600"
+        elif request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-cache, no-store"
+        
+        return response
+
 app = FastAPI(
     title="Depth Estimation API",
     description="API for depth estimation and 3D visualization",
@@ -31,6 +49,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# Add security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

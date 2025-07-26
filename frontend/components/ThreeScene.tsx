@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera, Grid, AxesHelper } from '@react-three/drei'
+import { OrbitControls, PerspectiveCamera, Grid } from '@react-three/drei'
 import * as THREE from 'three'
 import { ViewerSettings, DepthEstimationResponse } from '@/shared/types'
 
@@ -170,8 +170,9 @@ function PointCloud({ originalImage, depthResult, settings }: PointCloudProps) {
       colors[i + 2] = color.b
     }
 
-    colorAttribute.array = colors
-    colorAttribute.needsUpdate = true
+    // Create new buffer attribute with updated colors
+    const newColorAttribute = new THREE.BufferAttribute(colors, 3)
+    geometry.setAttribute('color', newColorAttribute)
   }, [settings.colorMap, pointsData, getColorFromDepth])
 
   if (!pointsData) {
@@ -238,7 +239,7 @@ function SceneContent({ originalImage, depthResult, settings }: ThreeSceneProps)
       )}
       
       {/* Axes Helper */}
-      {settings.showAxes && <AxesHelper size={0.1} />}
+      {settings.showAxes && <axesHelper args={[0.1]} />}
       
       {/* Grid */}
       <Grid
