@@ -17,6 +17,8 @@ import tempfile
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from fastapi.staticfiles import StaticFiles
+
 app = FastAPI(title="Minimal Depth Estimation API")
 
 # CORS middleware
@@ -30,6 +32,9 @@ app.add_middleware(
 
 # Create temp directory
 os.makedirs("./temp", exist_ok=True)
+
+# Mount static files
+app.mount("/temp", StaticFiles(directory="./temp"), name="temp")
 
 @app.get("/")
 async def root():
@@ -80,9 +85,16 @@ async def estimate_depth(file: UploadFile = File(...)):
         noise = np.random.normal(0, 0.05, (height, width))
         depth_array = np.clip(depth_array + noise, 0, 1)
         
-        # Convert to image
-        depth_image = Image.fromarray((depth_array * 255).astype(np.uint8))
-        depth_image = depth_image.convert("RGB")
+        # Convert to colorized depth map using a simple colormap
+        depth_normalized = (depth_array * 255).astype(np.uint8)
+        
+        # Create a simple color gradient (blue to red)
+        depth_colored = np.zeros((height, width, 3), dtype=np.uint8)
+        depth_colored[:, :, 0] = depth_normalized  # Red channel
+        depth_colored[:, :, 1] = 128  # Green channel (constant)
+        depth_colored[:, :, 2] = 255 - depth_normalized  # Blue channel (inverted)
+        
+        depth_image = Image.fromarray(depth_colored, 'RGB')
         
         # Save images
         with tempfile.NamedTemporaryFile(delete=False, suffix='.png', dir='./temp') as tmp_depth:
