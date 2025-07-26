@@ -21,10 +21,15 @@ class Settings(BaseSettings):
     
     HUGGINGFACE_TOKEN: str = os.getenv("HUGGINGFACE_TOKEN", "")
     
+    # Memory-optimized model settings for free tier
+    LIGHTWEIGHT_MODEL: str = "Intel/dpt-hybrid-midas"  # Smallest DPT model
     DEFAULT_DEPTH_MODEL: str = "Intel/dpt-hybrid-midas"
+    DEFAULT_RESOLUTION: int = 384  # Lower resolution for memory efficiency
+    MAX_RESOLUTION: int = 512  # Maximum allowed resolution
+    
     AVAILABLE_MODELS: List[str] = [
+        "Intel/dpt-hybrid-midas",  # Lightweight option first
         "Intel/dpt-large",
-        "Intel/dpt-hybrid-midas", 
         "LiheYoung/depth-anything-large-hf"
     ]
     

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-depth_estimator = DepthEstimator()
+# No global depth_estimator - create per request for memory efficiency
 
 @router.post("/estimate")
 async def estimate_depth(
@@ -30,6 +30,7 @@ async def estimate_depth(
     """
     Estimate depth from uploaded image
     """
+    depth_estimator = None
     try:
         if not validate_image(file):
             raise HTTPException(status_code=400, detail="Invalid image format")
@@ -40,11 +41,14 @@ async def estimate_depth(
         image_data = await file.read()
         
         if model_name and model_name not in settings.AVAILABLE_MODELS:
-            model_name = settings.DEFAULT_DEPTH_MODEL
+            model_name = settings.LIGHTWEIGHT_MODEL
+        
+        # Create estimator per request for memory efficiency
+        depth_estimator = DepthEstimator()
         
         depth_map, original_image = await depth_estimator.predict(
             image_data, 
-            model_name=model_name or settings.DEFAULT_DEPTH_MODEL,
+            model_name=model_name or settings.LIGHTWEIGHT_MODEL,
             target_resolution=resolution
         )
         
@@ -71,7 +75,7 @@ async def estimate_depth(
             "success": True,
             "depthMapUrl": f"/temp/{temp_depth_name}",
             "originalUrl": f"/temp/{temp_orig_name}",
-            "modelUsed": model_name or settings.DEFAULT_DEPTH_MODEL,
+            "modelUsed": model_name or settings.LIGHTWEIGHT_MODEL,
             "resolution": f"{original_image.width}x{original_image.height}",
             "note": "深度マップが正常に生成されました"
         })
@@ -79,6 +83,11 @@ async def estimate_depth(
     except Exception as e:
         logger.error(f"Depth estimation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+    finally:
+        # Clean up depth estimator
+        if depth_estimator:
+            depth_estimator.clear_cache()
+            del depth_estimator
 
 @router.post("/generate-3d")
 async def generate_3d(
@@ -90,15 +99,19 @@ async def generate_3d(
     """
     Generate 3D point cloud from image
     """
+    depth_estimator = None
     try:
         if not validate_image(file):
             raise HTTPException(status_code=400, detail="Invalid image format")
         
         image_data = await file.read()
         
+        # Create estimator per request for memory efficiency
+        depth_estimator = DepthEstimator()
+        
         depth_map, original_image = await depth_estimator.predict(
             image_data,
-            model_name=model_name or settings.DEFAULT_DEPTH_MODEL
+            model_name=model_name or settings.LIGHTWEIGHT_MODEL
         )
         
         pointcloud = generate_pointcloud(
@@ -120,6 +133,11 @@ async def generate_3d(
     except Exception as e:
         logger.error(f"3D generation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"3D generation failed: {str(e)}")
+    finally:
+        # Clean up depth estimator
+        if depth_estimator:
+            depth_estimator.clear_cache()
+            del depth_estimator
 
 @router.get("/models")
 async def get_available_models():
