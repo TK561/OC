@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # CORS設定 - 全て許可（デバッグ用）
     ALLOWED_ORIGINS: List[str] = ["*"]
     
-    MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
+    MAX_FILE_SIZE: int = 5 * 1024 * 1024  # 5MB for free tier
     ALLOWED_IMAGE_TYPES: List[str] = ["image/jpeg", "image/png", "image/webp"]
     
     MODEL_CACHE_DIR: str = os.getenv("MODEL_CACHE_DIR", "./models")
@@ -22,15 +22,13 @@ class Settings(BaseSettings):
     HUGGINGFACE_TOKEN: str = os.getenv("HUGGINGFACE_TOKEN", "")
     
     # Memory-optimized model settings for free tier
-    LIGHTWEIGHT_MODEL: str = "Intel/dpt-hybrid-midas"  # Smallest DPT model
+    LIGHTWEIGHT_MODEL: str = "Intel/dpt-hybrid-midas"  # Use MiDaS for minimal memory
     DEFAULT_DEPTH_MODEL: str = "Intel/dpt-hybrid-midas"
-    DEFAULT_RESOLUTION: int = 384  # Lower resolution for memory efficiency
-    MAX_RESOLUTION: int = 512  # Maximum allowed resolution
+    DEFAULT_RESOLUTION: int = 256  # Very low resolution for memory efficiency
+    MAX_RESOLUTION: int = 384  # Maximum allowed resolution
     
     AVAILABLE_MODELS: List[str] = [
-        "Intel/dpt-hybrid-midas",  # Lightweight option first
-        "Intel/dpt-large",
-        "LiheYoung/depth-anything-large-hf"
+        "Intel/dpt-hybrid-midas"  # Only lightweight model for free tier
     ]
     
     class Config:

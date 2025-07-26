@@ -32,15 +32,18 @@ class DepthEstimator:
             logger.info(f"Loading model: {model_name}")
             
             if "dpt" in model_name.lower():
-                # Load with memory optimization
+                # Load with maximum memory optimization
                 processor = DPTImageProcessor.from_pretrained(
                     model_name,
-                    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32
+                    torch_dtype=torch.float32,  # Use float32 for CPU
+                    do_rescale=True,
+                    size_divisor=32
                 )
                 model = DPTForDepthEstimation.from_pretrained(
                     model_name,
-                    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                    low_cpu_mem_usage=True
+                    torch_dtype=torch.float32,
+                    low_cpu_mem_usage=True,
+                    revision="main"
                 )
             elif "depth-anything" in model_name.lower():
                 # Use pipeline for DepthAnything with memory optimization
@@ -64,8 +67,10 @@ class DepthEstimator:
                     low_cpu_mem_usage=True
                 )
             
-            model.to(self.device)
-            model.eval()
+            # Move to device with memory optimization
+            with torch.no_grad():
+                model.to(self.device)
+                model.eval()
             
             self._log_memory_usage(f"After loading model: {model_name}")
             
@@ -137,9 +142,14 @@ class DepthEstimator:
                 
                 # Clear inputs from GPU memory immediately
                 del inputs, outputs, predicted_depth
+                torch.cuda.empty_cache() if torch.cuda.is_available() else None
             
             # Normalize and convert to image
             depth_map_image = self._depth_to_image(depth_array)
+            
+            # Clear depth array after conversion
+            del depth_array
+            gc.collect()
             
             self._log_memory_usage("Prediction completed")
             
@@ -247,19 +257,39 @@ class DepthEstimator:
     
     def _cleanup_memory(self, model=None, processor=None):
         """Aggressive memory cleanup after model usage"""
-        if model is not None:
-            del model
-        if processor is not None:
-            del processor
-        
-        # Clear PyTorch cache
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        
-        # Force garbage collection
-        gc.collect()
-        
-        self._log_memory_usage("After cleanup")
+        try:
+            if model is not None:
+                # Clear model from GPU/CPU
+                if hasattr(model, 'cpu'):
+                    model.cpu()
+                if hasattr(model, 'eval'):
+                    model.eval()
+                # Delete all references
+                del model
+            
+            if processor is not None:
+                del processor
+            
+            # Clear all cached models
+            self.models.clear()
+            self.processors.clear()
+            
+            # Clear PyTorch cache
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
+            # Clear any remaining tensors
+            for obj in gc.get_objects():
+                if torch.is_tensor(obj):
+                    del obj
+            
+            # Force multiple garbage collection passes
+            for _ in range(3):
+                gc.collect()
+            
+            self._log_memory_usage("After cleanup")
+        except Exception as e:
+            logger.warning(f"Cleanup error: {e}")
     
     def _log_memory_usage(self, stage: str):
         """Log current memory usage"""
