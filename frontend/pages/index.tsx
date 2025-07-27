@@ -68,7 +68,9 @@ export default function Home() {
         setDepthResult({
           depthMapUrl: depthImageUrl,
           originalUrl: uploadedImage,
-          model_used: 'gradio-depth'
+          success: true,
+          modelUsed: 'gradio-depth',
+          resolution: '384x384'
         })
         setActiveTab('depth')
       } else {

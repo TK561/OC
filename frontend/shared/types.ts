@@ -1,7 +1,9 @@
 export interface DepthEstimationResponse {
   depthMapUrl: string
   originalUrl: string
-  model_used?: string
+  success: boolean
+  modelUsed: string
+  resolution: string
 }
 
 export interface ViewerSettings {
