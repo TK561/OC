@@ -45,14 +45,18 @@ export default function Home() {
       // Try real API first, fallback to mock
       try {
         console.log('Trying real API...')
+        console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
         
-        // 10秒タイムアウト設定
+        // 15秒タイムアウト設定（モデル推論時間を考慮）
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const timeoutId = setTimeout(() => controller.abort(), 15000)
         
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/call/predict`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
           body: JSON.stringify({
             data: [imageDataUrl],
             session_hash: Math.random().toString(36).substring(7)
@@ -64,21 +68,26 @@ export default function Home() {
 
         if (response.ok) {
           const result = await response.json()
+          console.log('API Response:', result)
+          
           if (result.data && result.data.length >= 2) {
+            // DepthAnything V2からの実際の深度マップ
             setDepthResult({
-              depthMapUrl: result.data[1],
-              originalUrl: result.data[0] || uploadedImage,
+              depthMapUrl: result.data[1], // 深度マップ
+              originalUrl: result.data[0] || uploadedImage, // 元画像
               success: true,
-              modelUsed: 'huggingface-spaces',
-              resolution: 'auto'
+              modelUsed: 'DepthAnything-V2-Small',
+              resolution: 'original'
             })
             setActiveTab('depth')
+            console.log('✅ Real AI depth estimation successful!')
             return
           }
         }
-        throw new Error('API failed')
+        throw new Error(`API failed: ${response.status} ${response.statusText}`)
       } catch (apiError) {
-        console.log('Real API failed, using mock API...')
+        console.log('Real API failed:', apiError)
+        console.log('Falling back to mock API...')
         
         // フォールバック: モックAPI
         const { createMockDepthMap } = await import('../lib/mockApi')
@@ -93,7 +102,7 @@ export default function Home() {
         })
         setActiveTab('depth')
         
-        console.log('Using mock depth estimation')
+        console.log('⚠️ Using mock depth estimation (real API unavailable)')
       }
     } catch (error) {
       console.error('All depth estimation methods failed:', error)

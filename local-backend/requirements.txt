@@ -1,0 +1,22 @@
+# 展示用ローカルバックエンド依存関係
+
+# Core API
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# AI/ML
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.35.0
+
+# Image Processing
+Pillow>=10.0.0
+opencv-python-headless>=4.8.0
+numpy>=1.24.0
+
+# Optional: GPU support
+# nvidia-cublas-cu11
+# nvidia-cuda-runtime-cu11
+
+# Development
+python-multipart>=0.0.6

@@ -174,7 +174,14 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-600">モデル:</span>
-            <span className="font-medium">{depthResult.modelUsed}</span>
+            <span className={`font-medium ${
+              depthResult.modelUsed.includes('mock') 
+                ? 'text-orange-600' 
+                : 'text-green-600'
+            }`}>
+              {depthResult.modelUsed}
+              {depthResult.modelUsed.includes('mock') && ' (デモ)'}
+            </span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">解像度:</span>

@@ -1,0 +1,32 @@
+# ngrok アカウントリカバリーコード
+# 生成日時: 2025-01-27
+# 用途: 展示用深度推定システム - バックエンドAPI接続
+
+## リカバリーコード一覧
+3PP2JDWFK5
+A6DYGCBU8T
+SBB8YKRXYU
+JTNQDQKZ4J
+EBKJ8ZADGZ
+7UNXY3ZU5N
+XMNV3AVG29
+JJFKUDB4SP
+QNCMUAZTM4
+XH98F7NKNZ
+
+## 使用方法
+1. ngrok.com/login にアクセス
+2. "Trouble signing in?" → "Use recovery code" をクリック
+3. 上記コードの1つを入力
+4. 新しいパスワードを設定
+
+## 注意事項
+⚠️ リカバリーコードは一度しか使用できません
+⚠️ 使用後は新しいリカバリーコードを生成してください
+⚠️ このファイルは安全な場所に保管してください
+
+## 展示システム関連情報
+- プロジェクト: 深度推定・3D可視化アプリ
+- フロントエンド: Vercel
+- バックエンド: Google Colab + ngrok
+- セキュリティレベル: 最高（外部漏洩なし）
