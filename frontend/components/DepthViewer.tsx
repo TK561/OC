@@ -71,20 +71,17 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
 
   // Check if URL is already a data URL or full URL
   const getImageUrl = (url: string) => {
-    console.log('Processing image URL:', url)
     if (!url) {
-      console.error('Empty URL provided')
       return ''
     }
-    if (url.startsWith('data:') || url.startsWith('http')) {
-      console.log('Using direct URL')
+    // Return as-is for data URLs, HTTP URLs, and blob URLs
+    if (url.startsWith('data:') || url.startsWith('http') || url.startsWith('blob:') || url.startsWith('/samples/')) {
       return url
     }
     const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
     // Ensure URL starts with /
     const path = url.startsWith('/') ? url : `/${url}`
     const fullUrl = `${baseUrl}${path}`
-    console.log('Constructed full URL:', fullUrl)
     return fullUrl
   }
 
@@ -126,12 +123,16 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <div className="aspect-square bg-white rounded border overflow-hidden">
                 {depthResult.originalUrl ? (
                   <img
+                    key={`original-${depthResult.originalUrl}`}
                     src={getImageUrl(depthResult.originalUrl)}
                     alt="Original"
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       console.error('Failed to load original image:', depthResult.originalUrl)
-                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Loading Error</text></svg>'
+                      const errorUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Loading Error</text></svg>'
+                      if (e.currentTarget.src !== errorUrl) {
+                        e.currentTarget.src = errorUrl
+                      }
                     }}
                   />
                 ) : (
@@ -148,13 +149,16 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <div className="aspect-square bg-white rounded border overflow-hidden">
                 {depthResult.depthMapUrl ? (
                   <img
-                    key={depthResult.depthMapUrl}
+                    key={`depth-${depthResult.depthMapUrl}`}
                     src={getImageUrl(depthResult.depthMapUrl)}
                     alt="Depth Map"
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       console.error('Failed to load depth map:', depthResult.depthMapUrl)
-                      e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Loading Error</text></svg>'
+                      const errorUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Loading Error</text></svg>'
+                      if (e.currentTarget.src !== errorUrl) {
+                        e.currentTarget.src = errorUrl
+                      }
                     }}
                   />
                 ) : (
@@ -169,7 +173,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
           <div className="aspect-video bg-white rounded border overflow-hidden">
             {depthResult.depthMapUrl ? (
               <img
-                key={depthResult.depthMapUrl}
+                key={`single-depth-${depthResult.depthMapUrl}`}
                 src={getImageUrl(depthResult.depthMapUrl)}
                 alt="Depth Map"
                 className="w-full h-full object-contain"
