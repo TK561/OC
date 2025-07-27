@@ -45,6 +45,11 @@ export default function Home() {
       // Try real API first, fallback to mock
       try {
         console.log('Trying real API...')
+        
+        // 10秒タイムアウト設定
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/call/predict`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -52,8 +57,10 @@ export default function Home() {
             data: [imageDataUrl],
             session_hash: Math.random().toString(36).substring(7)
           }),
-          timeout: 10000 // 10秒タイムアウト
+          signal: controller.signal
         })
+        
+        clearTimeout(timeoutId)
 
         if (response.ok) {
           const result = await response.json()
