@@ -28,35 +28,30 @@ export default function Home() {
 
     setIsProcessing(true)
     try {
-      const formData = new FormData()
+      let imageBlob: Blob
       
-      // Convert data URL to blob if needed
+      // Convert image to blob
       if (uploadedImage.startsWith('data:')) {
         const response = await fetch(uploadedImage)
-        const blob = await response.blob()
-        formData.append('file', blob, 'image.jpg')
+        imageBlob = await response.blob()
       } else {
-        // Handle file upload case
         const response = await fetch(uploadedImage)
-        const blob = await response.blob()
-        formData.append('file', blob, 'image.jpg')
+        imageBlob = await response.blob()
       }
-      
-      formData.append('model_name', selectedModel)
-      
+
       console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
-      console.log('Making request to:', `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/depth/estimate`)
+      console.log('Making request to Gradio API')
       
-      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/depth/estimate`, {
+      // Gradio API call using predict endpoint
+      const formData = new FormData()
+      formData.append('data', JSON.stringify([imageBlob]))
+      
+      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/predict/`, {
         method: 'POST',
         body: formData,
-        headers: {
-          'Accept': 'application/json',
-        },
       })
 
       console.log('Response status:', apiResponse.status)
-      console.log('Response headers:', Object.fromEntries(apiResponse.headers.entries()))
 
       if (!apiResponse.ok) {
         const errorText = await apiResponse.text()
@@ -64,9 +59,22 @@ export default function Home() {
         throw new Error(`HTTP error! status: ${apiResponse.status}, message: ${errorText}`)
       }
 
-      const result: DepthEstimationResponse = await apiResponse.json()
-      setDepthResult(result)
-      setActiveTab('depth')
+      const result = await apiResponse.json()
+      console.log('Gradio response:', result)
+      
+      // Process Gradio response format
+      if (result.data && result.data.length >= 2) {
+        const depthImageUrl = result.data[1] // Second output is depth map
+        setDepthResult({
+          depthMapUrl: depthImageUrl,
+          originalUrl: uploadedImage,
+          processing_time: 0,
+          model_used: 'gradio-depth'
+        })
+        setActiveTab('depth')
+      } else {
+        throw new Error('Invalid response format from Gradio API')
+      }
     } catch (error) {
       console.error('Depth estimation failed:', error)
       alert('深度推定に失敗しました。もう一度お試しください。')
