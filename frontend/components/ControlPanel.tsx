@@ -74,6 +74,8 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
               value={settings.colorMap}
               onChange={(e) => handleSettingChange('colorMap', e.target.value as ViewerSettings['colorMap'])}
               className="input-field w-full"
+              title="カラーマップ選択"
+              aria-label="深度マップのカラーマップを選択"
             >
               <option value="viridis">Viridis</option>
               <option value="plasma">Plasma</option>
@@ -95,6 +97,8 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
               value={settings.pointSize}
               onChange={(e) => handleSettingChange('pointSize', parseFloat(e.target.value))}
               className="w-full"
+              title={`ポイントサイズ: ${settings.pointSize.toFixed(2)}`}
+              aria-label={`ポイントサイズを${settings.pointSize.toFixed(2)}に設定`}
             />
           </div>
 
@@ -112,6 +116,8 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
                     settings.backgroundColor === color ? 'border-depth-500' : 'border-gray-300'
                   }`}
                   style={{ backgroundColor: color }}
+                  title={`背景色を${color}に設定`}
+                  aria-label={`背景色を${color}に設定`}
                 />
               ))}
               <input
@@ -119,6 +125,8 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
                 value={settings.backgroundColor}
                 onChange={(e) => handleSettingChange('backgroundColor', e.target.value)}
                 className="w-8 h-8 rounded border border-gray-300"
+                title="カスタム背景色選択"
+                aria-label="カスタム背景色を選択"
               />
             </div>
           </div>
