@@ -68,7 +68,6 @@ export default function Home() {
         setDepthResult({
           depthMapUrl: depthImageUrl,
           originalUrl: uploadedImage,
-          processing_time: 0,
           model_used: 'gradio-depth'
         })
         setActiveTab('depth')
