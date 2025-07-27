@@ -33,6 +33,18 @@ app.add_middleware(
 # Create temp directory
 os.makedirs("./temp", exist_ok=True)
 
+# CORS headers for static files
+@app.middleware("http")
+async def add_cors_to_static(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/temp/"):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+        response.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
+
 # Mount static files
 app.mount("/temp", StaticFiles(directory="./temp"), name="temp")
 
@@ -139,6 +151,19 @@ async def get_models():
         "models": ["gradient-mock"],
         "default": "gradient-mock"
     }
+
+# Handle OPTIONS for static files
+@app.options("/temp/{path:path}")
+async def static_options(path: str):
+    return JSONResponse(
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Cross-Origin-Resource-Policy": "cross-origin"
+        }
+    )
 
 if __name__ == "__main__":
     import uvicorn
