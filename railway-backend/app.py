@@ -1,16 +1,14 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import torch
-from transformers import AutoImageProcessor, AutoModelForDepthEstimation
 import numpy as np
 from PIL import Image
-import cv2
 import base64
 import io
 import os
+import requests
 
-app = FastAPI(title="Depth Estimation API")
+app = FastAPI(title="Depth Estimation API - Lightweight")
 
 # CORS設定
 app.add_middleware(
@@ -21,35 +19,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# グローバル変数
-processor = None
-model = None
-device = "cpu"
-
-def load_model():
-    """モデルを一度だけ読み込む"""
-    global processor, model
-    if processor is None or model is None:
-        print("Loading MiDaS model...")
-        model_name = "Intel/dpt-hybrid-midas"
-        processor = AutoImageProcessor.from_pretrained(model_name)
-        model = AutoModelForDepthEstimation.from_pretrained(model_name)
-        model.to(device)
-        model.eval()
-        print(f"Model loaded on {device}")
-
-# 起動時にモデル読み込み
-@app.on_event("startup")
-async def startup_event():
-    load_model()
+def create_mock_depth_map(image):
+    """軽量なモック深度マップ生成"""
+    # グレースケール変換
+    gray = image.convert('L')
+    gray_array = np.array(gray)
+    
+    # 簡単な深度風エフェクト（中央が近く、端が遠い）
+    h, w = gray_array.shape
+    center_x, center_y = w // 2, h // 2
+    
+    # 距離マップ作成
+    y, x = np.ogrid[:h, :w]
+    distance = np.sqrt((x - center_x)**2 + (y - center_y)**2)
+    max_distance = np.sqrt(center_x**2 + center_y**2)
+    
+    # 正規化して深度マップ作成
+    depth_map = 255 - (distance / max_distance * 255)
+    depth_map = depth_map.astype(np.uint8)
+    
+    return Image.fromarray(depth_map, mode='L')
 
 @app.get("/")
 async def root():
-    return {"message": "Depth Estimation API", "status": "running"}
+    return {
+        "message": "Lightweight Depth Estimation API", 
+        "status": "running",
+        "model": "mock-gradient",
+        "note": "Using lightweight mock implementation for Railway deployment"
+    }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "model_loaded": model is not None}
+    return {"status": "healthy", "model_loaded": True}
 
 @app.post("/api/predict")
 async def predict_depth(file: UploadFile = File(...)):
@@ -58,25 +60,26 @@ async def predict_depth(file: UploadFile = File(...)):
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert('RGB')
         
-        # サイズ制限（Railway無料版のメモリ制限対応）
-        max_size = 256
+        # サイズ制限
+        max_size = 512
         if max(image.size) > max_size:
             ratio = max_size / max(image.size)
             new_size = tuple(int(dim * ratio) for dim in image.size)
             image = image.resize(new_size, Image.Resampling.LANCZOS)
         
-        # 深度推定
-        inputs = processor(images=image, return_tensors="pt")
+        # モック深度マップ生成
+        depth_gray = create_mock_depth_map(image)
         
-        with torch.no_grad():
-            outputs = model(**inputs)
-            depth = outputs.predicted_depth.squeeze().cpu().numpy()
+        # カラーマップ適用（手動でviridis風）
+        depth_array = np.array(depth_gray)
+        colored_depth = np.zeros((depth_array.shape[0], depth_array.shape[1], 3), dtype=np.uint8)
         
-        # 深度マップ可視化
-        depth_norm = ((depth - depth.min()) / (depth.max() - depth.min()) * 255).astype(np.uint8)
-        depth_colored = cv2.applyColorMap(depth_norm, cv2.COLORMAP_VIRIDIS)
-        depth_colored = cv2.cvtColor(depth_colored, cv2.COLOR_BGR2RGB)
-        depth_image = Image.fromarray(depth_colored)
+        # 簡単なカラーマップ
+        colored_depth[:, :, 0] = depth_array // 4  # R
+        colored_depth[:, :, 1] = depth_array // 2  # G  
+        colored_depth[:, :, 2] = depth_array       # B
+        
+        depth_image = Image.fromarray(colored_depth)
         
         # Base64エンコード
         def image_to_base64(img):
@@ -89,8 +92,9 @@ async def predict_depth(file: UploadFile = File(...)):
             "success": True,
             "originalUrl": image_to_base64(image),
             "depthMapUrl": image_to_base64(depth_image),
-            "model": "MiDaS-Hybrid",
-            "resolution": f"{image.size[0]}x{image.size[1]}"
+            "model": "Mock-Gradient",
+            "resolution": f"{image.size[0]}x{image.size[1]}",
+            "note": "Lightweight implementation for demo purposes"
         })
         
     except Exception as e:
