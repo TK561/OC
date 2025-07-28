@@ -13,6 +13,9 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
   const [rotation, setRotation] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 })
+  
+  console.log('ThreeScene depthResult:', depthResult)
+  console.log('ThreeScene pointcloudData:', depthResult?.pointcloudData)
 
   useEffect(() => {
     if (!depthResult?.pointcloudData || !canvasRef.current) return

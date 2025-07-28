@@ -76,6 +76,7 @@ export default function Home() {
         if (response.ok) {
           const result = await response.json()
           console.log('Railway API Response:', result)
+          console.log('PointCloud Data:', result.pointcloudData)
           
           if (result.success && result.depthMapUrl) {
             // Railway APIからの深度マップ
