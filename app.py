@@ -11,7 +11,7 @@ def process_image(image):
         return None, None
     
     try:
-        # Initialize model (lightweight approach)
+        # Initialize model
         device = "cpu"
         model_name = "depth-anything/Depth-Anything-V2-Small-hf"
         
@@ -46,25 +46,14 @@ def process_image(image):
         print(f"Error: {e}")
         return image, None
 
-# Create interface
-with gr.Blocks(title="Depth Estimation") as demo:
-    gr.Markdown("# Depth Estimation API")
-    gr.Markdown("Upload an image to generate a depth map using DepthAnything V2")
-    
-    with gr.Row():
-        with gr.Column():
-            input_image = gr.Image(type="pil", label="Input Image")
-            process_btn = gr.Button("Generate Depth Map", variant="primary")
-        
-        with gr.Column():
-            output_original = gr.Image(label="Original")
-            output_depth = gr.Image(label="Depth Map")
-    
-    process_btn.click(
-        fn=process_image,
-        inputs=input_image,
-        outputs=[output_original, output_depth]
-    )
+# Simple interface
+demo = gr.Interface(
+    fn=process_image,
+    inputs=gr.Image(type="pil"),
+    outputs=[gr.Image(type="pil"), gr.Image(type="pil")],
+    title="Depth Estimation API",
+    description="Upload an image to generate a depth map"
+)
 
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860, share=False)
+    demo.launch()
