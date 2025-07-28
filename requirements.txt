@@ -1,6 +1,6 @@
 torch
 transformers
-gradio
+streamlit
 numpy
 opencv-python-headless
 Pillow

@@ -1,25 +1,30 @@
-import gradio as gr
+import streamlit as st
 import torch
 from transformers import AutoImageProcessor, AutoModelForDepthEstimation
 import numpy as np
 from PIL import Image
 import cv2
+import io
 
-def process_image(image):
+@st.cache_resource
+def load_model():
+    """Load and cache the depth estimation model"""
+    device = "cpu"
+    model_name = "depth-anything/Depth-Anything-V2-Small-hf"
+    
+    processor = AutoImageProcessor.from_pretrained(model_name)
+    model = AutoModelForDepthEstimation.from_pretrained(model_name)
+    model.to(device)
+    model.eval()
+    
+    return processor, model, device
+
+def process_image(image, processor, model, device):
     """Process uploaded image and return depth map"""
     if image is None:
         return None, None
     
     try:
-        # Initialize model
-        device = "cpu"
-        model_name = "depth-anything/Depth-Anything-V2-Small-hf"
-        
-        processor = AutoImageProcessor.from_pretrained(model_name)
-        model = AutoModelForDepthEstimation.from_pretrained(model_name)
-        model.to(device)
-        model.eval()
-        
         # Resize for faster processing
         max_size = 384
         if max(image.size) > max_size:
@@ -43,17 +48,40 @@ def process_image(image):
         return image, depth_image
         
     except Exception as e:
-        print(f"Error: {e}")
+        st.error(f"Error processing image: {e}")
         return image, None
 
-# Simple interface
-demo = gr.Interface(
-    fn=process_image,
-    inputs=gr.Image(type="pil"),
-    outputs=[gr.Image(type="pil"), gr.Image(type="pil")],
-    title="Depth Estimation API",
-    description="Upload an image to generate a depth map"
-)
+def main():
+    st.title("Depth Estimation API")
+    st.markdown("Upload an image to generate a depth map using DepthAnything V2")
+    
+    # Load model
+    processor, model, device = load_model()
+    st.success("Model loaded successfully!")
+    
+    # File uploader
+    uploaded_file = st.file_uploader("Choose an image", type=['png', 'jpg', 'jpeg'])
+    
+    if uploaded_file is not None:
+        # Display original image
+        image = Image.open(uploaded_file).convert('RGB')
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Original Image")
+            st.image(image, use_column_width=True)
+        
+        # Process image
+        with st.spinner("Generating depth map..."):
+            original, depth_map = process_image(image, processor, model, device)
+        
+        if depth_map is not None:
+            with col2:
+                st.subheader("Depth Map")
+                st.image(depth_map, use_column_width=True)
+        else:
+            st.error("Failed to generate depth map")
 
 if __name__ == "__main__":
-    demo.launch()
+    main()
