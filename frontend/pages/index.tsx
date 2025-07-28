@@ -42,25 +42,32 @@ export default function Home() {
 
       console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
       
-      // Try real API first, fallback to mock
+      // Try Railway API first, fallback to mock
       try {
-        console.log('Trying real API...')
+        console.log('Trying Railway API...')
         console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
         
-        // 15秒タイムアウト設定（モデル推論時間を考慮）
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 15000)
+        // ファイルアップロード用のFormData作成
+        const formData = new FormData()
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/call/predict`, {
+        // Base64をBlobに変換
+        const byteCharacters = atob(imageDataUrl.split(',')[1])
+        const byteNumbers = new Array(byteCharacters.length)
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i)
+        }
+        const byteArray = new Uint8Array(byteNumbers)
+        const blob = new Blob([byteArray], { type: 'image/jpeg' })
+        
+        formData.append('file', blob, 'image.jpg')
+        
+        // 10秒タイムアウト設定
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/predict`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            data: [imageDataUrl],
-            session_hash: Math.random().toString(36).substring(7)
-          }),
+          body: formData,
           signal: controller.signal
         })
         
@@ -68,25 +75,25 @@ export default function Home() {
 
         if (response.ok) {
           const result = await response.json()
-          console.log('API Response:', result)
+          console.log('Railway API Response:', result)
           
-          if (result.data && result.data.length >= 2) {
-            // DepthAnything V2からの実際の深度マップ
+          if (result.success && result.depthMapUrl) {
+            // Railway APIからの深度マップ
             setDepthResult({
-              depthMapUrl: result.data[1], // 深度マップ
-              originalUrl: result.data[0] || uploadedImage, // 元画像
+              depthMapUrl: result.depthMapUrl,
+              originalUrl: result.originalUrl || uploadedImage,
               success: true,
-              modelUsed: 'DepthAnything-V2-Small',
-              resolution: 'original'
+              modelUsed: result.model || 'Railway-API',
+              resolution: result.resolution || 'unknown'
             })
             setActiveTab('depth')
-            console.log('✅ Real AI depth estimation successful!')
+            console.log('✅ Railway API depth estimation successful!')
             return
           }
         }
-        throw new Error(`API failed: ${response.status} ${response.statusText}`)
+        throw new Error(`Railway API failed: ${response.status} ${response.statusText}`)
       } catch (apiError) {
-        console.log('Real API failed:', apiError)
+        console.log('Railway API failed:', apiError)
         console.log('Falling back to mock API...')
         
         // フォールバック: モックAPI
@@ -102,7 +109,7 @@ export default function Home() {
         })
         setActiveTab('depth')
         
-        console.log('⚠️ Using mock depth estimation (real API unavailable)')
+        console.log('⚠️ Using mock depth estimation (Railway API unavailable)')
       }
     } catch (error) {
       console.error('All depth estimation methods failed:', error)
