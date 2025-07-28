@@ -1,15 +1,13 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import numpy as np
-from PIL import Image
-from scipy import ndimage
-from skimage import filters, feature, measure
+from PIL import Image, ImageFilter, ImageOps
 import base64
 import io
 import os
+import math
 
-app = FastAPI(title="Lightweight AI Depth Estimation API")
+app = FastAPI(title="Advanced Computer Vision Depth Estimation API")
 
 # CORS設定
 app.add_middleware(
@@ -20,86 +18,170 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def advanced_depth_estimation(image):
-    """高度な画像処理ベースの深度推定"""
-    # RGB → グレースケール変換
-    gray = np.array(image.convert('L'))
-    h, w = gray.shape
+def advanced_edge_detection(image):
+    """Pillow ベースのエッジ検出"""
+    gray = image.convert('L')
     
-    # 1. エッジ検出 (Canny)
-    edges = feature.canny(gray, sigma=2.0)
+    # エッジ検出 (FIND_EDGES)
+    edges = gray.filter(ImageFilter.FIND_EDGES)
     
-    # 2. テクスチャ分析 (局所標準偏差)
-    texture = ndimage.generic_filter(gray.astype(float), np.std, size=5)
+    # より強いエッジ検出のためにコントラスト強化
+    edges = ImageOps.autocontrast(edges)
     
-    # 3. グラデーション解析
-    grad_y, grad_x = np.gradient(gray.astype(float))
-    gradient_magnitude = np.sqrt(grad_x**2 + grad_y**2)
-    
-    # 4. 距離変換 (中心からの距離)
-    center_x, center_y = w // 2, h // 2
-    y, x = np.ogrid[:h, :w]
-    distance_from_center = np.sqrt((x - center_x)**2 + (y - center_y)**2)
-    max_distance = np.sqrt(center_x**2 + center_y**2)
-    distance_norm = distance_from_center / max_distance
-    
-    # 5. 重み付き深度マップ合成
-    depth_map = (
-        0.3 * (1 - distance_norm) +          # 中心ほど近い
-        0.2 * (texture / texture.max()) +   # テクスチャが豊富な部分は近い
-        0.2 * (gradient_magnitude / gradient_magnitude.max()) +  # エッジ部分は近い
-        0.3 * (1 - edges.astype(float))     # エッジではない部分は遠い
-    )
-    
-    # 6. ガウシアンスムージング
-    depth_map = ndimage.gaussian_filter(depth_map, sigma=1.5)
-    
-    # 7. 正規化
-    depth_map = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
-    
-    return depth_map
+    return edges
 
-def apply_viridis_colormap(depth_array):
-    """Viridis風カラーマップ適用"""
-    # Viridis色定義 (簡略版)
-    viridis_colors = np.array([
-        [68, 1, 84],      # 濃い紫
-        [59, 82, 139],    # 青紫
-        [33, 144, 140],   # 青緑
-        [93, 201, 99],    # 緑
-        [253, 231, 37]    # 黄色
-    ])
+def texture_analysis(image):
+    """テクスチャ分析 (局所分散近似)"""
+    gray = image.convert('L')
+    w, h = gray.size
     
-    h, w = depth_array.shape
-    colored = np.zeros((h, w, 3), dtype=np.uint8)
+    # 新しい画像を作成
+    texture_img = Image.new('L', (w, h))
+    pixels = gray.load()
+    texture_pixels = texture_img.load()
     
-    # 深度値を0-4の範囲にマップ
-    indices = (depth_array * 4).astype(int)
-    indices = np.clip(indices, 0, 3)
-    
-    # 線形補間でカラーマップ適用
-    for i in range(h):
-        for j in range(w):
-            idx = indices[i, j]
-            alpha = (depth_array[i, j] * 4) - idx
+    # 3x3 ウィンドウでの局所分散計算
+    for y in range(1, h - 1):
+        for x in range(1, w - 1):
+            # 3x3 近傍の値を取得
+            values = []
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    values.append(pixels[x + dx, y + dy])
             
-            if idx < 4:
-                color = (1 - alpha) * viridis_colors[idx] + alpha * viridis_colors[idx + 1]
-            else:
+            # 分散計算
+            mean_val = sum(values) / len(values)
+            variance = sum((v - mean_val) ** 2 for v in values) / len(values)
+            texture_pixels[x, y] = min(255, int(math.sqrt(variance) * 10))
+    
+    return texture_img
+
+def gradient_magnitude(image):
+    """グラデーション強度計算"""
+    gray = image.convert('L')
+    w, h = gray.size
+    
+    # Sobel フィルタ近似
+    gradient_img = Image.new('L', (w, h))
+    pixels = gray.load()
+    grad_pixels = gradient_img.load()
+    
+    for y in range(1, h - 1):
+        for x in range(1, w - 1):
+            # Sobel X
+            gx = (pixels[x+1, y-1] + 2*pixels[x+1, y] + pixels[x+1, y+1] -
+                  pixels[x-1, y-1] - 2*pixels[x-1, y] - pixels[x-1, y+1])
+            
+            # Sobel Y  
+            gy = (pixels[x-1, y+1] + 2*pixels[x, y+1] + pixels[x+1, y+1] -
+                  pixels[x-1, y-1] - 2*pixels[x, y-1] - pixels[x+1, y-1])
+            
+            # マグニチュード
+            magnitude = math.sqrt(gx*gx + gy*gy)
+            grad_pixels[x, y] = min(255, int(magnitude / 8))
+    
+    return gradient_img
+
+def advanced_depth_estimation(image):
+    """Pillow のみで高度な深度推定"""
+    w, h = image.size
+    center_x, center_y = w // 2, h // 2
+    
+    # 1. エッジ検出
+    edges = advanced_edge_detection(image)
+    edge_pixels = edges.load()
+    
+    # 2. テクスチャ分析
+    texture = texture_analysis(image)
+    texture_pixels = texture.load()
+    
+    # 3. グラデーション分析
+    gradient = gradient_magnitude(image)
+    gradient_pixels = gradient.load()
+    
+    # 4. 最終深度マップ作成
+    depth_img = Image.new('L', (w, h))
+    depth_pixels = depth_img.load()
+    
+    max_distance = math.sqrt(center_x**2 + center_y**2)
+    
+    for y in range(h):
+        for x in range(w):
+            # 中心からの距離
+            distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
+            distance_norm = distance / max_distance
+            
+            # 各特徴量を正規化
+            edge_val = edge_pixels[x, y] / 255.0
+            texture_val = texture_pixels[x, y] / 255.0 if texture_pixels[x, y] else 0
+            gradient_val = gradient_pixels[x, y] / 255.0 if gradient_pixels[x, y] else 0
+            
+            # 重み付き合成
+            depth_value = (
+                0.4 * (1 - distance_norm) +     # 中心ほど近い
+                0.2 * texture_val +             # テクスチャが豊富 = 近い
+                0.2 * gradient_val +            # グラデーション強い = 近い  
+                0.2 * (1 - edge_val)           # エッジでない = 遠い
+            )
+            
+            depth_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
+    
+    # 5. スムージング
+    depth_img = depth_img.filter(ImageFilter.GaussianBlur(radius=1.5))
+    
+    return depth_img
+
+def apply_viridis_colormap_pillow(depth_image):
+    """Pillow でViridis風カラーマップ"""
+    w, h = depth_image.size
+    colored_img = Image.new('RGB', (w, h))
+    
+    depth_pixels = depth_image.load()
+    colored_pixels = colored_img.load()
+    
+    # Viridis 色定義
+    viridis_colors = [
+        (68, 1, 84),      # 濃い紫
+        (59, 82, 139),    # 青紫  
+        (33, 144, 140),   # 青緑
+        (93, 201, 99),    # 緑
+        (253, 231, 37)    # 黄色
+    ]
+    
+    for y in range(h):
+        for x in range(w):
+            depth_val = depth_pixels[x, y] / 255.0
+            
+            # 色インデックス計算
+            color_idx = depth_val * 4
+            idx = int(color_idx)
+            alpha = color_idx - idx
+            
+            if idx >= 4:
                 color = viridis_colors[4]
+            else:
+                color1 = viridis_colors[idx]
+                color2 = viridis_colors[min(idx + 1, 4)]
+                
+                # 線形補間
+                color = (
+                    int(color1[0] * (1 - alpha) + color2[0] * alpha),
+                    int(color1[1] * (1 - alpha) + color2[1] * alpha),
+                    int(color1[2] * (1 - alpha) + color2[2] * alpha)
+                )
             
-            colored[i, j] = color.astype(np.uint8)
+            colored_pixels[x, y] = color
     
-    return colored
+    return colored_img
 
 @app.get("/")
 async def root():
     return {
-        "message": "Lightweight AI Depth Estimation API", 
+        "message": "Advanced Computer Vision Depth Estimation API", 
         "status": "running",
-        "model": "Advanced-Computer-Vision",
-        "algorithms": ["Canny Edge", "Texture Analysis", "Gradient", "Distance Transform"],
-        "note": "Real computer vision algorithms without heavy AI models"
+        "model": "Pillow-Advanced-CV",
+        "algorithms": ["Edge Detection", "Texture Analysis", "Gradient Magnitude", "Distance Transform"],
+        "note": "Real computer vision algorithms using only Pillow - no NumPy dependencies"
     }
 
 @app.get("/health")
@@ -107,7 +189,7 @@ async def health_check():
     return {
         "status": "healthy",
         "model_loaded": True,
-        "algorithms": "computer_vision_ready"
+        "algorithms": "pillow_cv_ready"
     }
 
 @app.post("/api/predict")
@@ -124,16 +206,15 @@ async def predict_depth(file: UploadFile = File(...)):
             new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
             image = image.resize(new_size, Image.Resampling.LANCZOS)
         
-        print(f"Processing image with advanced CV: {image.size}")
+        print(f"Processing with Pillow-based CV: {image.size}")
         
-        # 高度な深度推定
-        depth_map = advanced_depth_estimation(image)
+        # Pillow ベース深度推定
+        depth_gray = advanced_depth_estimation(image)
         
         # カラーマップ適用
-        depth_colored = apply_viridis_colormap(depth_map)
-        depth_image = Image.fromarray(depth_colored)
+        depth_colored = apply_viridis_colormap_pillow(depth_gray)
         
-        print(f"✅ Advanced depth estimation completed")
+        print(f"✅ Pillow-based depth estimation completed")
         
         # Base64エンコード
         def image_to_base64(img):
@@ -145,12 +226,12 @@ async def predict_depth(file: UploadFile = File(...)):
         return JSONResponse({
             "success": True,
             "originalUrl": image_to_base64(image),
-            "depthMapUrl": image_to_base64(depth_image),
-            "model": "Advanced-Computer-Vision",
+            "depthMapUrl": image_to_base64(depth_colored),
+            "model": "Pillow-Advanced-CV",
             "resolution": f"{image.size[0]}x{image.size[1]}",
-            "note": "Real computer vision depth estimation using edge detection, texture analysis, and gradient computation",
-            "algorithms": ["Canny Edge Detection", "Texture Analysis", "Gradient Computation", "Distance Transform"],
-            "depth_range": f"{depth_map.min():.3f} - {depth_map.max():.3f}"
+            "note": "Real computer vision depth estimation using Pillow-based edge detection, texture analysis, and gradient computation",
+            "algorithms": ["Pillow Edge Detection", "Texture Variance Analysis", "Sobel Gradient", "Distance Transform"],
+            "implementation": "Pure Pillow - No NumPy"
         })
         
     except Exception as e:
