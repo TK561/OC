@@ -4,6 +4,10 @@ export interface DepthEstimationResponse {
   success: boolean
   model: string
   resolution: string
+  note?: string
+  algorithms?: string[]
+  implementation?: string
+  features?: string[]
   pointcloudData?: {
     points: number[][]
     colors: number[][]
