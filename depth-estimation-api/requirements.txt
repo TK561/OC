@@ -1,7 +1,6 @@
 torch
-torchvision
 transformers
-opencv-python
-pillow
+gradio==3.50.0
 numpy
-gradio
+opencv-python-headless
+Pillow
