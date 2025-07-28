@@ -83,7 +83,7 @@ export default function Home() {
               depthMapUrl: result.depthMapUrl,
               originalUrl: result.originalUrl || uploadedImage,
               success: true,
-              modelUsed: result.model || 'Railway-API',
+              model: result.model || 'Railway-API',
               resolution: result.resolution || 'unknown'
             })
             setActiveTab('depth')
@@ -104,7 +104,7 @@ export default function Home() {
           depthMapUrl: mockDepthMap,
           originalUrl: uploadedImage,
           success: true,
-          modelUsed: 'mock-gradient',
+          model: 'mock-gradient',
           resolution: 'original'
         })
         setActiveTab('depth')

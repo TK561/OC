@@ -200,7 +200,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-gray-600">使用モデル:</span>
-            <span className="ml-2 font-medium">{depthResult.modelUsed || 'Unknown'}</span>
+            <span className="ml-2 font-medium">{depthResult.model || 'Unknown'}</span>
           </div>
           <div>
             <span className="text-gray-600">解像度:</span>

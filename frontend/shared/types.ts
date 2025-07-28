@@ -2,7 +2,7 @@ export interface DepthEstimationResponse {
   depthMapUrl: string
   originalUrl: string
   success: boolean
-  modelUsed: string
+  model: string
   resolution: string
   pointcloudData?: {
     points: number[][]
