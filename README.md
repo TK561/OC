@@ -1,3 +1,14 @@
+---
+title: Depth Estimation API
+emoji: 🏃
+colorFrom: blue
+colorTo: red
+sdk: streamlit
+sdk_version: 1.28.0
+app_file: app.py
+pinned: false
+---
+
 # 深度推定・画像処理アプリケーション
 
 展示会向けの深度推定と3D可視化を行うWebアプリケーションです。
