@@ -174,6 +174,45 @@ def apply_viridis_colormap_pillow(depth_image):
     
     return colored_img
 
+def generate_pointcloud(original_image, depth_image):
+    """3Dポイントクラウドデータ生成"""
+    w, h = original_image.size
+    
+    # ダウンサンプリング（3D表示用に軽量化）
+    downsample_factor = 4
+    points = []
+    colors = []
+    
+    orig_pixels = original_image.load()
+    depth_pixels = depth_image.load()
+    
+    for y in range(0, h, downsample_factor):
+        for x in range(0, w, downsample_factor):
+            # 深度値を取得（0-255 → 0-1 → 実際の深度）
+            depth_val = depth_pixels[x, y] / 255.0
+            
+            # 3D座標計算
+            # X,Y: 画像座標を正規化
+            x_norm = (x / w - 0.5) * 2  # -1 to 1
+            y_norm = (0.5 - y / h) * 2  # -1 to 1 (Y軸反転)
+            
+            # Z: 深度値（深い = 遠い）
+            z_norm = (1.0 - depth_val) * 2 - 1  # -1 to 1
+            
+            # ポイント追加
+            points.append([x_norm, y_norm, z_norm])
+            
+            # 色情報取得
+            r, g, b = orig_pixels[x, y]
+            colors.append([r/255.0, g/255.0, b/255.0])
+    
+    return {
+        "points": points,
+        "colors": colors,
+        "count": len(points),
+        "downsample_factor": downsample_factor
+    }
+
 @app.get("/")
 async def root():
     return {
@@ -223,15 +262,20 @@ async def predict_depth(file: UploadFile = File(...)):
             img_base64 = base64.b64encode(buffer.getvalue()).decode()
             return f"data:image/png;base64,{img_base64}"
         
+        # 3Dポイントクラウドデータ生成
+        pointcloud_data = generate_pointcloud(image, depth_gray)
+        
         return JSONResponse({
             "success": True,
             "originalUrl": image_to_base64(image),
             "depthMapUrl": image_to_base64(depth_colored),
+            "pointcloudData": pointcloud_data,
             "model": "Pillow-Advanced-CV",
             "resolution": f"{image.size[0]}x{image.size[1]}",
             "note": "Real computer vision depth estimation using Pillow-based edge detection, texture analysis, and gradient computation",
             "algorithms": ["Pillow Edge Detection", "Texture Variance Analysis", "Sobel Gradient", "Distance Transform"],
-            "implementation": "Pure Pillow - No NumPy"
+            "implementation": "Pure Pillow - No NumPy",
+            "features": ["2D Depth Map", "3D Point Cloud"]
         })
         
     except Exception as e:

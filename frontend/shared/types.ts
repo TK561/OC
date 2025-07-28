@@ -4,6 +4,12 @@ export interface DepthEstimationResponse {
   success: boolean
   modelUsed: string
   resolution: string
+  pointcloudData?: {
+    points: number[][]
+    colors: number[][]
+    count: number
+    downsample_factor: number
+  }
 }
 
 export interface ViewerSettings {
