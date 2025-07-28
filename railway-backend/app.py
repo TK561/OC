@@ -1,14 +1,13 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 import base64
 import io
 import os
-import requests
+import math
 
-app = FastAPI(title="Depth Estimation API - Lightweight")
+app = FastAPI(title="Depth Estimation API - Ultra Lightweight")
 
 # CORS設定
 app.add_middleware(
@@ -20,33 +19,59 @@ app.add_middleware(
 )
 
 def create_mock_depth_map(image):
-    """軽量なモック深度マップ生成"""
+    """NumPy不要の軽量深度マップ生成"""
     # グレースケール変換
     gray = image.convert('L')
-    gray_array = np.array(gray)
-    
-    # 簡単な深度風エフェクト（中央が近く、端が遠い）
-    h, w = gray_array.shape
+    w, h = gray.size
     center_x, center_y = w // 2, h // 2
     
-    # 距離マップ作成
-    y, x = np.ogrid[:h, :w]
-    distance = np.sqrt((x - center_x)**2 + (y - center_y)**2)
-    max_distance = np.sqrt(center_x**2 + center_y**2)
+    # 新しい画像を作成
+    depth_image = Image.new('L', (w, h))
+    pixels = depth_image.load()
     
-    # 正規化して深度マップ作成
-    depth_map = 255 - (distance / max_distance * 255)
-    depth_map = depth_map.astype(np.uint8)
+    # 最大距離計算
+    max_distance = math.sqrt(center_x**2 + center_y**2)
     
-    return Image.fromarray(depth_map, mode='L')
+    # ピクセルごとに深度値計算
+    for y in range(h):
+        for x in range(w):
+            # 中心からの距離
+            distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
+            # 深度値（中央が明るく、端が暗く）
+            depth_value = int(255 - (distance / max_distance * 255))
+            pixels[x, y] = max(0, min(255, depth_value))
+    
+    return depth_image
+
+def create_colored_depth(depth_gray):
+    """グレースケールからカラー深度マップ"""
+    w, h = depth_gray.size
+    colored = Image.new('RGB', (w, h))
+    pixels_colored = colored.load()
+    pixels_gray = depth_gray.load()
+    
+    for y in range(h):
+        for x in range(w):
+            gray_val = pixels_gray[x, y]
+            # シンプルなカラーマップ (青→緑→赤)
+            if gray_val < 85:
+                r, g, b = 0, gray_val * 3, 255
+            elif gray_val < 170:
+                r, g, b = 0, 255, 255 - (gray_val - 85) * 3
+            else:
+                r, g, b = (gray_val - 170) * 3, 255 - (gray_val - 170) * 3, 0
+            
+            pixels_colored[x, y] = (r, g, b)
+    
+    return colored
 
 @app.get("/")
 async def root():
     return {
-        "message": "Lightweight Depth Estimation API", 
+        "message": "Ultra Lightweight Depth Estimation API", 
         "status": "running",
-        "model": "mock-gradient",
-        "note": "Using lightweight mock implementation for Railway deployment"
+        "model": "pure-python-mock",
+        "note": "Pure Python implementation without NumPy for Railway deployment"
     }
 
 @app.get("/health")
@@ -61,25 +86,15 @@ async def predict_depth(file: UploadFile = File(...)):
         image = Image.open(io.BytesIO(contents)).convert('RGB')
         
         # サイズ制限
-        max_size = 512
+        max_size = 256  # さらに小さく
         if max(image.size) > max_size:
             ratio = max_size / max(image.size)
-            new_size = tuple(int(dim * ratio) for dim in image.size)
+            new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
             image = image.resize(new_size, Image.Resampling.LANCZOS)
         
         # モック深度マップ生成
         depth_gray = create_mock_depth_map(image)
-        
-        # カラーマップ適用（手動でviridis風）
-        depth_array = np.array(depth_gray)
-        colored_depth = np.zeros((depth_array.shape[0], depth_array.shape[1], 3), dtype=np.uint8)
-        
-        # 簡単なカラーマップ
-        colored_depth[:, :, 0] = depth_array // 4  # R
-        colored_depth[:, :, 1] = depth_array // 2  # G  
-        colored_depth[:, :, 2] = depth_array       # B
-        
-        depth_image = Image.fromarray(colored_depth)
+        depth_colored = create_colored_depth(depth_gray)
         
         # Base64エンコード
         def image_to_base64(img):
@@ -91,10 +106,10 @@ async def predict_depth(file: UploadFile = File(...)):
         return JSONResponse({
             "success": True,
             "originalUrl": image_to_base64(image),
-            "depthMapUrl": image_to_base64(depth_image),
-            "model": "Mock-Gradient",
+            "depthMapUrl": image_to_base64(depth_colored),
+            "model": "Pure-Python-Mock",
             "resolution": f"{image.size[0]}x{image.size[1]}",
-            "note": "Lightweight implementation for demo purposes"
+            "note": "Pure Python implementation without heavy dependencies"
         })
         
     except Exception as e:
