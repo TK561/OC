@@ -220,7 +220,9 @@ async def root():
         "status": "running",
         "model": "Pillow-Advanced-CV",
         "algorithms": ["Edge Detection", "Texture Analysis", "Gradient Magnitude", "Distance Transform"],
-        "note": "Real computer vision algorithms using only Pillow - no NumPy dependencies"
+        "note": "Real computer vision algorithms using only Pillow - no NumPy dependencies",
+        "version": "1.1.0",
+        "features": ["2D Depth Map", "3D Point Cloud Generation"]
     }
 
 @app.get("/health")
