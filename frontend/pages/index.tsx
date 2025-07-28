@@ -84,7 +84,12 @@ export default function Home() {
               originalUrl: result.originalUrl || uploadedImage,
               success: true,
               model: result.model || 'Railway-API',
-              resolution: result.resolution || 'unknown'
+              resolution: result.resolution || 'unknown',
+              note: result.note,
+              algorithms: result.algorithms,
+              implementation: result.implementation,
+              features: result.features,
+              pointcloudData: result.pointcloudData
             })
             setActiveTab('depth')
             console.log('✅ Railway API depth estimation successful!')
