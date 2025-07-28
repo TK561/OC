@@ -1,13 +1,16 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from PIL import Image, ImageFilter
+import torch
+from transformers import DPTImageProcessor, DPTForDepthEstimation
+import numpy as np
+from PIL import Image
+import cv2
 import base64
 import io
 import os
-import math
 
-app = FastAPI(title="Depth Estimation API - Ultra Lightweight")
+app = FastAPI(title="AI Depth Estimation API")
 
 # CORS設定
 app.add_middleware(
@@ -18,83 +21,101 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def create_mock_depth_map(image):
-    """NumPy不要の軽量深度マップ生成"""
-    # グレースケール変換
-    gray = image.convert('L')
-    w, h = gray.size
-    center_x, center_y = w // 2, h // 2
-    
-    # 新しい画像を作成
-    depth_image = Image.new('L', (w, h))
-    pixels = depth_image.load()
-    
-    # 最大距離計算
-    max_distance = math.sqrt(center_x**2 + center_y**2)
-    
-    # ピクセルごとに深度値計算
-    for y in range(h):
-        for x in range(w):
-            # 中心からの距離
-            distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
-            # 深度値（中央が明るく、端が暗く）
-            depth_value = int(255 - (distance / max_distance * 255))
-            pixels[x, y] = max(0, min(255, depth_value))
-    
-    return depth_image
+# グローバル変数
+processor = None
+model = None
+device = "cpu"
 
-def create_colored_depth(depth_gray):
-    """グレースケールからカラー深度マップ"""
-    w, h = depth_gray.size
-    colored = Image.new('RGB', (w, h))
-    pixels_colored = colored.load()
-    pixels_gray = depth_gray.load()
-    
-    for y in range(h):
-        for x in range(w):
-            gray_val = pixels_gray[x, y]
-            # シンプルなカラーマップ (青→緑→赤)
-            if gray_val < 85:
-                r, g, b = 0, gray_val * 3, 255
-            elif gray_val < 170:
-                r, g, b = 0, 255, 255 - (gray_val - 85) * 3
-            else:
-                r, g, b = (gray_val - 170) * 3, 255 - (gray_val - 170) * 3, 0
-            
-            pixels_colored[x, y] = (r, g, b)
-    
-    return colored
+def load_model():
+    """軽量DPTモデルを読み込み"""
+    global processor, model
+    if processor is None or model is None:
+        print("Loading DPT-Small model...")
+        model_name = "Intel/dpt-hybrid-midas"
+        try:
+            processor = DPTImageProcessor.from_pretrained(model_name)
+            model = DPTForDepthEstimation.from_pretrained(model_name)
+            model.to(device)
+            model.eval()
+            print(f"✅ DPT model loaded successfully on {device}")
+        except Exception as e:
+            print(f"❌ Model loading failed: {e}")
+            raise e
+
+# 起動時にモデル読み込み
+@app.on_event("startup")
+async def startup_event():
+    try:
+        load_model()
+    except Exception as e:
+        print(f"Startup failed: {e}")
 
 @app.get("/")
 async def root():
     return {
-        "message": "Ultra Lightweight Depth Estimation API", 
+        "message": "AI Depth Estimation API", 
         "status": "running",
-        "model": "pure-python-mock",
-        "note": "Pure Python implementation without NumPy for Railway deployment"
+        "model": "Intel/dpt-hybrid-midas",
+        "device": device,
+        "note": "Real AI depth estimation using DPT model"
     }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "model_loaded": True}
+    model_status = model is not None and processor is not None
+    return {
+        "status": "healthy" if model_status else "loading",
+        "model_loaded": model_status,
+        "device": device
+    }
 
 @app.post("/api/predict")
 async def predict_depth(file: UploadFile = File(...)):
     try:
+        # モデル確認
+        if model is None or processor is None:
+            raise HTTPException(status_code=503, detail="Model not loaded yet")
+        
         # 画像読み込み
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert('RGB')
         
-        # サイズ制限
-        max_size = 256  # さらに小さく
+        # サイズ制限（Railway メモリ制限対応）
+        max_size = 384
         if max(image.size) > max_size:
             ratio = max_size / max(image.size)
             new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
             image = image.resize(new_size, Image.Resampling.LANCZOS)
         
-        # モック深度マップ生成
-        depth_gray = create_mock_depth_map(image)
-        depth_colored = create_colored_depth(depth_gray)
+        print(f"Processing image: {image.size}")
+        
+        # AI深度推定
+        inputs = processor(images=image, return_tensors="pt")
+        
+        with torch.no_grad():
+            outputs = model(**inputs)
+            predicted_depth = outputs.predicted_depth
+        
+        # 深度マップ後処理
+        depth = predicted_depth.squeeze().cpu().numpy()
+        depth_min = depth.min()
+        depth_max = depth.max()
+        
+        # 正規化
+        if depth_max > depth_min:
+            depth_norm = (depth - depth_min) / (depth_max - depth_min)
+        else:
+            depth_norm = depth
+        
+        # 0-255スケールに変換
+        depth_uint8 = (depth_norm * 255).astype(np.uint8)
+        
+        # カラーマップ適用
+        depth_colored = cv2.applyColorMap(depth_uint8, cv2.COLORMAP_VIRIDIS)
+        depth_colored = cv2.cvtColor(depth_colored, cv2.COLOR_BGR2RGB)
+        depth_image = Image.fromarray(depth_colored)
+        
+        print(f"✅ Depth estimation completed")
         
         # Base64エンコード
         def image_to_base64(img):
@@ -106,15 +127,16 @@ async def predict_depth(file: UploadFile = File(...)):
         return JSONResponse({
             "success": True,
             "originalUrl": image_to_base64(image),
-            "depthMapUrl": image_to_base64(depth_colored),
-            "model": "Pure-Python-Mock",
+            "depthMapUrl": image_to_base64(depth_image),
+            "model": "Intel/dpt-hybrid-midas",
             "resolution": f"{image.size[0]}x{image.size[1]}",
-            "note": "Pure Python implementation without heavy dependencies"
+            "note": "Real AI depth estimation using DPT model",
+            "depth_range": f"{depth_min:.3f} - {depth_max:.3f}"
         })
         
     except Exception as e:
-        print(f"Error in prediction: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ Error in prediction: {e}")
+        raise HTTPException(status_code=500, detail=f"Depth estimation failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
