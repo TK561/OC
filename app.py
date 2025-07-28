@@ -6,23 +6,35 @@ from PIL import Image
 import cv2
 import base64
 import io
+import os
 
 class DepthEstimationAPI:
     def __init__(self):
         self.device = "cpu"  # Force CPU for Hugging Face free tier
         print(f"Using device: {self.device}")
         
-        # Use the small model for better CPU performance
-        model_name = "depth-anything/Depth-Anything-V2-Small-hf"
-        self.processor = AutoImageProcessor.from_pretrained(model_name)
-        self.model = AutoModelForDepthEstimation.from_pretrained(model_name)
-        self.model.to(self.device)
-        self.model.eval()
-        print("Model loaded successfully")
+        try:
+            # Use the small model for better CPU performance
+            model_name = "depth-anything/Depth-Anything-V2-Small-hf"
+            print(f"Loading model: {model_name}")
+            self.processor = AutoImageProcessor.from_pretrained(model_name)
+            self.model = AutoModelForDepthEstimation.from_pretrained(model_name)
+            self.model.to(self.device)
+            self.model.eval()
+            print("Model loaded successfully")
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            self.processor = None
+            self.model = None
     
     def predict(self, image_input):
         """Process image and return depth map"""
         try:
+            # Check if model is loaded
+            if self.model is None or self.processor is None:
+                print("Model not loaded properly")
+                return None, None
+                
             # Handle different input types
             if image_input is None:
                 return None, None
@@ -73,12 +85,23 @@ class DepthEstimationAPI:
             print(f"Error in prediction: {e}")
             return None, None
 
-# Initialize API
-api = DepthEstimationAPI()
+# Initialize API with error handling
+try:
+    api = DepthEstimationAPI()
+    print("API initialized successfully")
+except Exception as e:
+    print(f"Error initializing API: {e}")
+    api = None
+
+def safe_predict(image_input):
+    """Safe wrapper for predict function"""
+    if api is None:
+        return None, None
+    return api.predict(image_input)
 
 # Create simple interface for better compatibility
 demo = gr.Interface(
-    fn=api.predict,
+    fn=safe_predict,
     inputs=gr.Image(type="pil", label="Upload Image"),
     outputs=[
         gr.Image(type="pil", label="Original Image"),
