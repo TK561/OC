@@ -210,7 +210,9 @@ def generate_pointcloud(original_image, depth_image):
         "points": points,
         "colors": colors,
         "count": len(points),
-        "downsample_factor": downsample_factor
+        "downsample_factor": downsample_factor,
+        "original_size": {"width": w, "height": h},
+        "sampled_size": {"width": w // downsample_factor, "height": h // downsample_factor}
     }
 
 @app.get("/")

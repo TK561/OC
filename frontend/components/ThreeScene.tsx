@@ -311,7 +311,13 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         <div className="space-y-1">
           <div>📊 ポイント数: {depthResult.pointcloudData.count.toLocaleString()}</div>
           <div>🔧 モデル: {depthResult.model}</div>
-          <div>📐 解像度: {depthResult.pointcloudData.downsample_factor ? `1/${depthResult.pointcloudData.downsample_factor}` : 'Full'}</div>
+          <div>📐 3D解像度: {
+            depthResult.pointcloudData.sampled_size 
+              ? `${depthResult.pointcloudData.sampled_size.width}×${depthResult.pointcloudData.sampled_size.height}px`
+              : depthResult.pointcloudData.downsample_factor 
+                ? `標準画質（軽量化済み）`
+                : '高画質'
+          }</div>
         </div>
       </div>
     </div>
