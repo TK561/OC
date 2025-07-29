@@ -191,10 +191,10 @@ def generate_pointcloud(original_image, depth_image):
             # 深度値を取得（0-255 → 0-1 → 実際の深度）
             depth_val = depth_pixels[x, y] / 255.0
             
-            # 3D座標計算 - 正しい画像座標系変換（backendと統一）
+            # 3D座標計算 - 元画像と同じ向きに調整（backendと統一）
             # X,Y: 画像座標を正規化
             x_norm = (x / w - 0.5) * 1.6  # -0.8 to 0.8 やや圧縮
-            y_norm = -((y / h - 0.5) * 1.6)  # -0.8 to 0.8（Y軸反転で画像上部が3D上部に）
+            y_norm = (y / h - 0.5) * 1.6  # -0.8 to 0.8（Y軸反転なし、画像と同じ向き）
             
             # Z: 深度値（深い = 遠い）- 初期設定に復元
             z_norm = (1.0 - depth_val) * 2 - 1  # -1 to 1（初期設定）
