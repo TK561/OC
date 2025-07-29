@@ -221,6 +221,11 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
     return false
   }
 
+  const resetToInitialView = () => {
+    setRotation({ x: 0.2, y: 0.3 })  // 初期角度に戻す
+    setZoom(1.8)  // 初期ズームに戻す
+  }
+
   if (!depthResult) {
     return (
       <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
@@ -279,7 +284,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         <div className="font-semibold mb-2 text-center border-b border-gray-400 pb-1">
           🎮 3D操作ガイド
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 mb-3">
           <div className="flex items-center">
             <span className="w-4 text-center">🖱️</span>
             <span className="ml-2">ドラッグ: 3D回転</span>
@@ -293,6 +298,12 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
             <span className="ml-2">角度: X:{(rotation.x * 57.3).toFixed(0)}° Y:{(rotation.y * 57.3).toFixed(0)}°</span>
           </div>
         </div>
+        <button
+          onClick={resetToInitialView}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-3 rounded transition-colors duration-200"
+        >
+          🏠 初期配置に戻す
+        </button>
       </div>
 
       {/* 情報パネル */}
