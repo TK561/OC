@@ -77,10 +77,10 @@ def generate_pointcloud(
         depth_scale = 3.0  # より自然な3D表示のためのスケール調整
         depth_actual = depth_normalized * depth_scale
         
-        # Convert to 3D coordinates - より立体感のある座標系
+        # Convert to 3D coordinates - 正しい画像座標変換
         z = depth_actual + 0.5  # オフセットを追加して全体を前に移動
         x = (u_indices - cx) * z / fx * 0.8  # X方向をやや圧縮
-        y = -(v_indices - cy) * z / fy * 0.8  # Y軸を反転して正しい向きに、やや圧縮
+        y = (cy - v_indices) * z / fy * 0.8  # Y軸を正しく反転（上下を正常に）
         
         # Filter out invalid points
         valid_mask = (z > 0) & (z < depth_scale * 0.95)
