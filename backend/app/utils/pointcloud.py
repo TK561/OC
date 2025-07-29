@@ -80,7 +80,7 @@ def generate_pointcloud(
         # Convert to 3D coordinates
         z = depth_actual
         x = (u_indices - cx) * z / fx
-        y = (v_indices - cy) * z / fy
+        y = -(v_indices - cy) * z / fy  # Y軸を反転して正しい向きに
         
         # Filter out invalid points
         valid_mask = (z > 0) & (z < depth_scale * 0.95)
