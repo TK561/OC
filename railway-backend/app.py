@@ -131,44 +131,23 @@ def advanced_depth_estimation(image):
     
     return depth_img
 
-def apply_viridis_colormap_pillow(depth_image):
-    """Pillow でViridis風カラーマップ"""
+def apply_grayscale_depth_map(depth_image):
+    """深度マップをグレースケール表示（白が手前、黒が奥）"""
     w, h = depth_image.size
     colored_img = Image.new('RGB', (w, h))
     
     depth_pixels = depth_image.load()
     colored_pixels = colored_img.load()
     
-    # Viridis 色定義
-    viridis_colors = [
-        (68, 1, 84),      # 濃い紫
-        (59, 82, 139),    # 青紫  
-        (33, 144, 140),   # 青緑
-        (93, 201, 99),    # 緑
-        (253, 231, 37)    # 黄色
-    ]
-    
     for y in range(h):
         for x in range(w):
-            depth_val = depth_pixels[x, y] / 255.0
+            # 深度値を取得（0-255）
+            depth_val = depth_pixels[x, y]
             
-            # 色インデックス計算
-            color_idx = depth_val * 4
-            idx = int(color_idx)
-            alpha = color_idx - idx
-            
-            if idx >= 4:
-                color = viridis_colors[4]
-            else:
-                color1 = viridis_colors[idx]
-                color2 = viridis_colors[min(idx + 1, 4)]
-                
-                # 線形補間
-                color = (
-                    int(color1[0] * (1 - alpha) + color2[0] * alpha),
-                    int(color1[1] * (1 - alpha) + color2[1] * alpha),
-                    int(color1[2] * (1 - alpha) + color2[2] * alpha)
-                )
+            # 深度値をそのままグレースケール値として使用
+            # 高い値（手前）= 白、低い値（奥）= 黒
+            gray_value = depth_val
+            color = (gray_value, gray_value, gray_value)
             
             colored_pixels[x, y] = color
     
@@ -254,8 +233,8 @@ async def predict_depth(file: UploadFile = File(...)):
         # Pillow ベース深度推定
         depth_gray = advanced_depth_estimation(image)
         
-        # カラーマップ適用
-        depth_colored = apply_viridis_colormap_pillow(depth_gray)
+        # グレースケール深度マップ適用
+        depth_colored = apply_grayscale_depth_map(depth_gray)
         
         print(f"✅ Pillow-based depth estimation completed")
         
