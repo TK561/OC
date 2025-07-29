@@ -196,8 +196,8 @@ def generate_pointcloud(original_image, depth_image):
             x_norm = (x / w - 0.5) * 1.6  # -0.8 to 0.8 やや圧縮
             y_norm = (y / h - 0.5) * 1.6  # -0.8 to 0.8（Y軸反転なし、画像と同じ向き）
             
-            # Z: 深度値（深い = 遠い）- 初期設定に復元
-            z_norm = (1.0 - depth_val) * 2 - 1  # -1 to 1（初期設定）
+            # Z: 深度値を反転（手前が盛り上がるように）
+            z_norm = depth_val * 2 - 1  # 深度値そのまま使用（小さい値=手前=手前に）
             
             # ポイント追加
             points.append([x_norm, y_norm, z_norm])
