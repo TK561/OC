@@ -228,7 +228,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
           </div>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          紫色が最も近く、赤色が最も遠い距離を表します
+          白色が最も近く、黒色が最も遠い距離を表します
         </p>
       </div>
     </div>
