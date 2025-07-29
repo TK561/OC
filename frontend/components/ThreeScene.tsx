@@ -15,6 +15,39 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1.2)  // 初期ズームを少し拡大
 
+  // グローバルマウスイベントの処理
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false)
+      }
+    }
+
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return
+      
+      const deltaX = e.clientX - lastMouse.x
+      const deltaY = e.clientY - lastMouse.y
+      
+      setRotation(prev => ({
+        x: prev.x + deltaY * 0.01,
+        y: prev.y + deltaX * 0.01
+      }))
+      
+      setLastMouse({ x: e.clientX, y: e.clientY })
+    }
+
+    if (isDragging) {
+      document.addEventListener('mouseup', handleGlobalMouseUp)
+      document.addEventListener('mousemove', handleGlobalMouseMove)
+    }
+
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp)
+      document.removeEventListener('mousemove', handleGlobalMouseMove)
+    }
+  }, [isDragging, lastMouse])
+
   useEffect(() => {
     if (!depthResult?.pointcloudData || !canvasRef.current) return
 
@@ -115,11 +148,15 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     setIsDragging(true)
     setLastMouse({ x: e.clientX, y: e.clientY })
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     if (!isDragging) return
     
     const deltaX = e.clientX - lastMouse.x
@@ -133,14 +170,23 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
     setLastMouse({ x: e.clientX, y: e.clientY })
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleMouseLeave = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     setIsDragging(false)
   }
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault()
-    const delta = e.deltaY > 0 ? 0.9 : 1.1  // 上スクロール：拡大、下スクロール：縮小
-    setZoom(prev => Math.max(0.1, Math.min(5.0, prev * delta)))  // 0.1〜5.0の範囲に制限
+    e.stopPropagation()
+    const delta = e.deltaY > 0 ? 0.9 : 1.1
+    setZoom(prev => Math.max(0.1, Math.min(5.0, prev * delta)))
   }
 
   if (!depthResult) {
@@ -179,19 +225,49 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
       
       <canvas
         ref={canvasRef}
-        className="w-full h-96 cursor-grab active:cursor-grabbing"
+        className="w-full h-96 cursor-grab active:cursor-grabbing select-none"
+        style={{ 
+          touchAction: 'none',
+          userSelect: 'none',
+          WebkitUserSelect: 'none'
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
+        onContextMenu={(e) => e.preventDefault()} // 右クリックメニュー無効化
+        onDragStart={(e) => e.preventDefault()} // ドラッグ開始を無効化
       />
       
-      <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white px-3 py-2 rounded text-sm">
-        <div>🎮 ドラッグで回転</div>
-        <div>🔍 ホイールでズーム (×{zoom.toFixed(1)})</div>
-        <div>📊 ポイント数: {depthResult.pointcloudData.count}</div>
-        <div>🔧 モデル: {depthResult.model}</div>
+      {/* 操作説明パネル */}
+      <div className="absolute top-4 right-4 bg-black bg-opacity-80 text-white px-4 py-3 rounded-lg text-sm">
+        <div className="font-semibold mb-2 text-center border-b border-gray-400 pb-1">
+          🎮 3D操作ガイド
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center">
+            <span className="w-4 text-center">🖱️</span>
+            <span className="ml-2">ドラッグ: 3D回転</span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-4 text-center">🔍</span>
+            <span className="ml-2">ホイール: ズーム (×{zoom.toFixed(1)})</span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-4 text-center">↻</span>
+            <span className="ml-2">角度: X:{(rotation.x * 57.3).toFixed(0)}° Y:{(rotation.y * 57.3).toFixed(0)}°</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 情報パネル */}
+      <div className="absolute bottom-4 left-4 bg-black bg-opacity-80 text-white px-4 py-2 rounded-lg text-sm">
+        <div className="space-y-1">
+          <div>📊 ポイント数: {depthResult.pointcloudData.count.toLocaleString()}</div>
+          <div>🔧 モデル: {depthResult.model}</div>
+          <div>📐 解像度: {depthResult.pointcloudData.downsample_factor ? `1/${depthResult.pointcloudData.downsample_factor}` : 'Full'}</div>
+        </div>
       </div>
     </div>
   )
