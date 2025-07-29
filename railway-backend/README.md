@@ -1,11 +1,12 @@
 # 深度推定 API - Railway版
 
 ## 概要
-DepthAnything V2を使用した深度推定APIのRailway版です。
+Pillowベースの高度なコンピュータビジョン深度推定APIのRailway版です。
 
 ## 機能
-- FastAPI + DepthAnything V2モデル
-- 画像アップロードによる深度推定
+- FastAPI + Pillow Advanced CV
+- エッジ検出、テクスチャ解析、グラデーション解析
+- 3Dポイントクラウド生成
 - Base64形式でのレスポンス
 - CORS対応
 
@@ -44,7 +45,11 @@ curl -X POST https://your-app.railway.app/api/predict \
 
 ## 技術スタック
 - FastAPI
-- DepthAnything V2
-- PyTorch (CPU)
-- OpenCV
+- Pillow (Advanced Computer Vision)
+- 数学的アルゴリズム（Sobel、テクスチャ分散）
 - Railway (デプロイ)
+
+## 特徴
+- NumPy不要の軽量実装
+- 高速処理
+- 3D可視化対応
