@@ -59,13 +59,14 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         const rotatedY = y * cosX - rotatedZ * sinX
         const finalZ = y * sinX + rotatedZ * cosX
         
-        // 透視投影
-        const perspective = 2
-        const projectedX = centerX + (rotatedX * scale) / (perspective - finalZ)
-        const projectedY = centerY + (rotatedY * scale) / (perspective - finalZ)
+        // 透視投影 - より強いパースペクティブ効果
+        const perspective = 3.5  // より強い透視効果
+        const depth = Math.max(0.1, perspective - finalZ)  // ゼロ除算防止
+        const projectedX = centerX + (rotatedX * scale) / depth
+        const projectedY = centerY + (rotatedY * scale) / depth
         
-        // 深度による点サイズ
-        const pointSize = Math.max(1, settings.pointSize * 10 / (2 - finalZ))
+        // 深度による点サイズ - より自然なサイズ変化
+        const pointSize = Math.max(0.5, settings.pointSize * 8 / depth)
         
         // 色設定
         const color = colors[index]
