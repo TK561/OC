@@ -194,7 +194,7 @@ def generate_pointcloud(original_image, depth_image):
             # 3D座標計算
             # X,Y: 画像座標を正規化
             x_norm = (x / w - 0.5) * 2  # -1 to 1
-            y_norm = (y / h - 0.5) * 2  # -1 to 1 (Y軸正常向き)
+            y_norm = -((y / h - 0.5) * 2)  # -1 to 1 (Y軸反転して正しい向きに)
             
             # Z: 深度値（深い = 遠い）
             z_norm = (1.0 - depth_val) * 2 - 1  # -1 to 1
