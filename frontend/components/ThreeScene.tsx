@@ -70,7 +70,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
     return () => {
       canvas.removeEventListener('wheel', handleCanvasWheel)
     }
-  }, [canvasRef.current])
+  }, [depthResult])
 
   useEffect(() => {
     if (!depthResult?.pointcloudData || !canvasRef.current) return
@@ -263,9 +263,8 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
           userSelect: 'none',
           WebkitUserSelect: 'none',
           overscrollBehavior: 'none',
-          WebkitOverscrollBehavior: 'none',
           scrollBehavior: 'auto'
-        }}
+        } as React.CSSProperties}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
