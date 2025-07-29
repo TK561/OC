@@ -12,7 +12,7 @@
   "rewrites": [
     {
       "source": "/api/backend/:path*",
-      "destination": "https://tk156-depth-estimation-api.hf.space/:path*"
+      "destination": "https://depth-estimation-railway-production.up.railway.app/:path*"
     }
   ],
   "headers": [
@@ -31,6 +31,6 @@
     }
   ],
   "env": {
-    "NEXT_PUBLIC_BACKEND_URL": "https://tk156-depth-estimation-api.hf.space"
+    "NEXT_PUBLIC_BACKEND_URL": "https://depth-estimation-railway-production.up.railway.app"
   }
 }
