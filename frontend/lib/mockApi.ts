@@ -12,11 +12,11 @@ export async function createMockDepthMap(imageDataUrl: string): Promise<string> 
         canvas.width = img.width;
         canvas.height = img.height;
         
-        // グレースケール深度マップを生成（白が手前、黒が奥）
+        // グレースケール深度マップを生成（白が近い、黒が遠い）
         const gradient = ctx!.createLinearGradient(0, 0, 0, img.height);
-        gradient.addColorStop(0, 'rgb(0, 0, 0)');       // 黒 (奥)
+        gradient.addColorStop(0, 'rgb(0, 0, 0)');       // 黒 (遠い)
         gradient.addColorStop(0.5, 'rgb(128, 128, 128)'); // グレー (中間)
-        gradient.addColorStop(1, 'rgb(255, 255, 255)');   // 白 (手前)
+        gradient.addColorStop(1, 'rgb(255, 255, 255)');   // 白 (近い)
         
         ctx!.fillStyle = gradient;
         ctx!.fillRect(0, 0, canvas.width, canvas.height);

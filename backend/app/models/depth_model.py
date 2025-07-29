@@ -177,7 +177,7 @@ class DepthEstimator:
         return image.resize((new_w, new_h), Image.Resampling.LANCZOS)
     
     def _depth_to_image(self, depth_array: np.ndarray) -> Image.Image:
-        """Convert depth array to grayscale image (white=near, black=far)"""
+        """Convert depth array to grayscale image (white=近い, black=遠い)"""
         # Normalize depth values
         depth_min = depth_array.min()
         depth_max = depth_array.max()
@@ -187,7 +187,7 @@ class DepthEstimator:
         else:
             depth_normalized = np.zeros_like(depth_array)
         
-        # Convert to grayscale (0-255), where higher values (white) represent closer objects
+        # Convert to grayscale (0-255), where higher values (white) represent 近い objects
         depth_grayscale = (depth_normalized * 255).astype(np.uint8)
         
         # Convert single channel to RGB by replicating the channel

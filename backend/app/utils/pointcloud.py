@@ -77,8 +77,8 @@ def generate_pointcloud(
         depth_scale = 3.0  # より自然な3D表示のためのスケール調整
         depth_actual = depth_normalized * depth_scale
         
-        # Convert to 3D coordinates - 手前が盛り上がるように修正
-        # 深度値を反転：小さい値（手前）が手前に、大きい値（奥）が奥に
+        # Convert to 3D coordinates - 近い部分が盛り上がるように修正
+        # 深度値を反転：小さい値（近い）が手前に、大きい値（遠い）が奥に
         z_inverted = (depth_scale - depth_actual) + 0.5  # 深度を反転してオフセット追加
         x = (u_indices - cx) * z_inverted / fx * 0.8  # X方向をやや圧縮
         y = (v_indices - cy) * z_inverted / fy * 0.8  # Y軸は画像と同じ向き（反転なし）

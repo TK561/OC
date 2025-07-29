@@ -132,7 +132,7 @@ def advanced_depth_estimation(image):
     return depth_img
 
 def apply_grayscale_depth_map(depth_image):
-    """深度マップをグレースケール表示（白が手前、黒が奥）"""
+    """深度マップをグレースケール表示（白が近い、黒が遠い）"""
     w, h = depth_image.size
     colored_img = Image.new('RGB', (w, h))
     
@@ -145,7 +145,7 @@ def apply_grayscale_depth_map(depth_image):
             depth_val = depth_pixels[x, y]
             
             # 深度値をそのままグレースケール値として使用
-            # 高い値（手前）= 白、低い値（奥）= 黒
+            # 高い値（近い）= 白、低い値（遠い）= 黒
             gray_value = depth_val
             color = (gray_value, gray_value, gray_value)
             
@@ -175,8 +175,8 @@ def generate_pointcloud(original_image, depth_image):
             x_norm = (x / w - 0.5) * 1.6  # -0.8 to 0.8 やや圧縮
             y_norm = (y / h - 0.5) * 1.6  # -0.8 to 0.8（Y軸反転なし、画像と同じ向き）
             
-            # Z: 深度値を反転（手前が盛り上がるように）
-            z_norm = depth_val * 2 - 1  # 深度値そのまま使用（小さい値=手前=手前に）
+            # Z: 深度値を反転（近い部分が盛り上がるように）
+            z_norm = depth_val * 2 - 1  # 深度値そのまま使用（小さい値=近い=手前に）
             
             # ポイント追加
             points.append([x_norm, y_norm, z_norm])
