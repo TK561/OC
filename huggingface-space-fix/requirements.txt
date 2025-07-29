@@ -1,7 +1,0 @@
-torch
-torchvision
-transformers
-gradio
-numpy
-opencv-python-headless
-Pillow

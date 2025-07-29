@@ -1,6 +1,0 @@
-torch
-transformers
-gradio==3.50.0
-numpy
-opencv-python-headless
-Pillow

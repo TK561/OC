@@ -1,43 +1,38 @@
----
-title: Depth Estimation API
-emoji: 🌊
-colorFrom: blue
-colorTo: purple
-sdk: gradio
-sdk_version: 4.44.0
-app_file: app.py
-pinned: false
-license: mit
----
-
 # 深度推定・3D可視化 API
 
-Intel DPT-Hybrid-MiDaSモデルを使用した深度推定アプリケーションです。
+高度な深度推定技術を使用した3D可視化Webアプリケーションです。
 
-## 機能
-- 画像から深度マップを生成
-- リアルタイム処理
-- 直感的なWebインターフェース
-
-## 使用モデル
-- Intel/dpt-hybrid-midas (Transformers)
-
-## 技術スタック
-- Gradio (Web UI)
-- PyTorch (Deep Learning)
-- Transformers (Hugging Face)
-- OpenCV (画像処理)
-
-# 深度推定・画像処理アプリケーション
-
-展示会向けの深度推定と3D可視化を行うWebアプリケーションです。
-
-## 機能
-
-- **深度推定**: DPT-Large、MiDaS、DepthAnythingモデルを使用
-- **3D可視化**: Three.jsによるインタラクティブ3Dビューワー
+## ✨ 主要機能
+- **深度推定**: 複数のモデル対応（DPT-Large、MiDaS、DepthAnything、Pillow-CV）
+- **3D可視化**: インタラクティブな3Dポイントクラウド表示
 - **画像処理**: エッジ検出、ブラー、色調補正
 - **エクスポート**: PLY/OBJ形式での3Dデータ出力
+- **操作性**: ドラッグ回転・ホイールズーム対応
+
+## 📁 プロジェクト構成
+
+### 🎯 メイン実装
+- **`/frontend/`** - Next.js + Three.js フロントエンド（Vercel）
+- **`/backend/`** - FastAPI フル機能バックエンド（Render/Railway）
+- **`/railway-backend/`** - Railway専用軽量版（Pillow-CV）
+
+### 🧪 実験・開発
+- **`/experiments/`** - 開発・実験用コード
+  - `/colab/` - Google Colab用
+  - `/local/` - ローカル開発用
+
+### 🚀 デプロイメント
+- **`/deployments/`** - 各プラットフォーム用
+  - `/huggingface/` - HF Spaces用
+  - `/api-variants/` - 各種API版
+  - `/demos/` - デモ・展示用
+
+### 📚 ドキュメント・ユーティリティ
+- **`/docs/`** - プロジェクトドキュメント
+- **`/scripts/`** - 実行・デプロイスクリプト
+- **`/tests/`** - テストファイル群
+- **`/config/`** - 設定ファイル
+- **`/security/`** - セキュリティ設定
 
 ## 技術スタック
 
