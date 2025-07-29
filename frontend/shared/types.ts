@@ -13,6 +13,14 @@ export interface DepthEstimationResponse {
     colors: number[][]
     count: number
     downsample_factor: number
+    original_size?: {
+      width: number
+      height: number
+    }
+    sampled_size?: {
+      width: number
+      height: number
+    }
   }
 }
 
