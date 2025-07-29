@@ -10,9 +10,10 @@ interface ThreeSceneProps {
 export default function ThreeScene({ originalImage, depthResult, settings }: ThreeSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [rotation, setRotation] = useState({ x: 0, y: 0 })
+  const [rotation, setRotation] = useState({ x: -0.3, y: 0.5 })  // 初期角度を見やすく設定
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1.2)  // 初期ズームを少し拡大
 
   useEffect(() => {
     if (!depthResult?.pointcloudData || !canvasRef.current) return
@@ -39,7 +40,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
       const { points, colors } = depthResult.pointcloudData
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
-      const scale = 150
+      const scale = 180 * zoom  // ベーススケールを150→180に拡大
 
       // 3D → 2D投影
       points.forEach((point: number[], index: number) => {
@@ -59,14 +60,14 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         const rotatedY = y * cosX - rotatedZ * sinX
         const finalZ = y * sinX + rotatedZ * cosX
         
-        // 透視投影 - より強いパースペクティブ効果
-        const perspective = 3.5  // より強い透視効果
+        // 透視投影 - 初期表示を見やすく調整
+        const perspective = 4.0  // 透視効果をやや強化
         const depth = Math.max(0.1, perspective - finalZ)  // ゼロ除算防止
         const projectedX = centerX + (rotatedX * scale) / depth
         const projectedY = centerY + (rotatedY * scale) / depth
         
         // 深度による点サイズ - より自然なサイズ変化
-        const pointSize = Math.max(0.5, settings.pointSize * 8 / depth)
+        const pointSize = Math.max(0.8, settings.pointSize * 10 / depth)  // 最小サイズを0.8に
         
         // 色設定
         const color = colors[index]
@@ -86,7 +87,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
 
     renderPointCloud()
     setIsLoading(false)
-  }, [depthResult, settings, rotation])
+  }, [depthResult, settings, rotation, zoom])
 
   const drawAxes = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, scale: number) => {
     ctx.strokeStyle = '#ff0000'
@@ -136,6 +137,12 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
     setIsDragging(false)
   }
 
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? 0.9 : 1.1  // 上スクロール：拡大、下スクロール：縮小
+    setZoom(prev => Math.max(0.1, Math.min(5.0, prev * delta)))  // 0.1〜5.0の範囲に制限
+  }
+
   if (!depthResult) {
     return (
       <div className="flex items-center justify-center h-96 bg-gray-100 rounded-lg">
@@ -177,10 +184,12 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
       />
       
       <div className="absolute bottom-4 left-4 bg-black bg-opacity-70 text-white px-3 py-2 rounded text-sm">
         <div>🎮 ドラッグで回転</div>
+        <div>🔍 ホイールでズーム (×{zoom.toFixed(1)})</div>
         <div>📊 ポイント数: {depthResult.pointcloudData.count}</div>
         <div>🔧 モデル: {depthResult.model}</div>
       </div>
