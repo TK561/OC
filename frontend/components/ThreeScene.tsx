@@ -48,6 +48,30 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
     }
   }, [isDragging, lastMouse])
 
+  // キャンバス内でのホイール操作を完全に制御
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const handleCanvasWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      e.stopImmediatePropagation()
+      
+      const delta = e.deltaY > 0 ? 0.9 : 1.1
+      setZoom(prev => Math.max(0.1, Math.min(5.0, prev * delta)))
+      
+      return false
+    }
+
+    // passive: falseを明示的に設定してpreventDefaultを有効にする
+    canvas.addEventListener('wheel', handleCanvasWheel, { passive: false })
+
+    return () => {
+      canvas.removeEventListener('wheel', handleCanvasWheel)
+    }
+  }, [canvasRef.current])
+
   useEffect(() => {
     if (!depthResult?.pointcloudData || !canvasRef.current) return
 
@@ -183,10 +207,18 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
   }
 
   const handleWheel = (e: React.WheelEvent) => {
+    // より強力な画面スクロール防止
     e.preventDefault()
     e.stopPropagation()
+    e.nativeEvent.preventDefault()
+    e.nativeEvent.stopPropagation()
+    e.nativeEvent.stopImmediatePropagation()
+    
     const delta = e.deltaY > 0 ? 0.9 : 1.1
     setZoom(prev => Math.max(0.1, Math.min(5.0, prev * delta)))
+    
+    // 確実にスクロールを防ぐため、戻り値をfalseに
+    return false
   }
 
   if (!depthResult) {
@@ -229,7 +261,10 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         style={{ 
           touchAction: 'none',
           userSelect: 'none',
-          WebkitUserSelect: 'none'
+          WebkitUserSelect: 'none',
+          overscrollBehavior: 'none',
+          WebkitOverscrollBehavior: 'none',
+          scrollBehavior: 'auto'
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
