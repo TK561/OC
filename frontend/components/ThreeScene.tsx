@@ -13,7 +13,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
   const [rotation, setRotation] = useState({ x: -0.3, y: 0.5 })  // 初期角度を見やすく設定
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1.2)  // 初期ズームを少し拡大
+  const [zoom, setZoom] = useState(1.8)  // 初期ズームを大きく設定
 
   // グローバルマウスイベントの処理
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
       const { points, colors } = depthResult.pointcloudData
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
-      const scale = 180 * zoom  // ベーススケールを150→180に拡大
+      const scale = 200 * zoom  // ベーススケールをさらに大きく（180→200）
 
       // 3D → 2D投影
       points.forEach((point: number[], index: number) => {
