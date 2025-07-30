@@ -218,7 +218,8 @@ class DepthEstimatorV2:
                     torch.cuda.empty_cache()
             
             # Convert to image (white=near, black=far)
-            depth_map_image = self._depth_to_image(depth_array)
+            model_type = config.get("type", "unknown")
+            depth_map_image = self._depth_to_image(depth_array, model_type)
             
             # Cleanup
             del depth_array
@@ -268,20 +269,40 @@ class DepthEstimatorV2:
         # Remove batch dimension
         depth = predicted_depth.squeeze(0)
         
-        # Interpolate to original size
-        depth_resized = F.interpolate(
-            depth.unsqueeze(0).unsqueeze(0),
-            size=(original_size[1], original_size[0]),  # (H, W)
-            mode=config.get("resize_method", "bilinear"),
-            align_corners=config.get("align_corners", False)
-        )
+        # Model-specific processing
+        model_type = config.get("type", "unknown")
+        
+        if model_type == "dpt":
+            # DPT-Large: Standard interpolation
+            depth_resized = F.interpolate(
+                depth.unsqueeze(0).unsqueeze(0),
+                size=(original_size[1], original_size[0]),  # (H, W)
+                mode="bicubic",
+                align_corners=False
+            )
+        elif model_type == "midas":
+            # MiDaS: Uses specific interpolation from GitHub
+            depth_resized = F.interpolate(
+                depth.unsqueeze(0).unsqueeze(0),
+                size=(original_size[1], original_size[0]),  # (H, W) 
+                mode="bicubic",
+                align_corners=False
+            )
+        else:
+            # Default processing
+            depth_resized = F.interpolate(
+                depth.unsqueeze(0).unsqueeze(0),
+                size=(original_size[1], original_size[0]),  # (H, W)
+                mode=config.get("resize_method", "bilinear"),
+                align_corners=config.get("align_corners", False)
+            )
         
         # Convert to numpy
         depth_array = depth_resized.squeeze().cpu().numpy()
         
         return depth_array
     
-    def _depth_to_image(self, depth_array: np.ndarray) -> Image.Image:
+    def _depth_to_image(self, depth_array: np.ndarray, model_type: str = "unknown") -> Image.Image:
         """Convert depth array to grayscale image (white=near, black=far)"""
         # Normalize depth values
         depth_min = depth_array.min()
@@ -291,14 +312,22 @@ class DepthEstimatorV2:
             # Normalize to 0-1 range
             depth_normalized = (depth_array - depth_min) / (depth_max - depth_min)
             
-            # Apply gamma correction for better depth perception
-            # Lower gamma (<1) enhances details in darker areas
-            gamma = 0.9
-            depth_normalized = np.power(depth_normalized, gamma)
+            # Model-specific processing
+            if model_type == "dpt":
+                # DPT-Large: Apply gamma correction
+                gamma = 0.8
+                depth_normalized = np.power(depth_normalized, gamma)
+            elif model_type == "midas":
+                # MiDaS: Different gamma for MiDaS characteristics
+                gamma = 1.0  # Linear for MiDaS
+                depth_normalized = np.power(depth_normalized, gamma)
+            else:
+                # Default processing
+                gamma = 0.9
+                depth_normalized = np.power(depth_normalized, gamma)
             
-            # All models (DPT, MiDaS, Depth Anything) output inverse depth/disparity
-            # where larger values = closer objects
-            # So no inversion needed: keep larger values as white (near)
+            # All models output inverse depth/disparity (larger values = closer)
+            # Keep as-is: larger values remain white (near)
         else:
             depth_normalized = np.zeros_like(depth_array)
         
@@ -308,14 +337,24 @@ class DepthEstimatorV2:
         # Create PIL image for post-processing
         depth_image = Image.fromarray(depth_grayscale, mode='L')
         
-        # Apply Gaussian blur for smoother gradients
-        from PIL import ImageFilter
-        depth_image = depth_image.filter(ImageFilter.GaussianBlur(radius=2.0))
+        # Model-specific post-processing
+        from PIL import ImageFilter, ImageEnhance
         
-        # Apply subtle contrast enhancement
-        from PIL import ImageEnhance
-        enhancer = ImageEnhance.Contrast(depth_image)
-        depth_image = enhancer.enhance(1.2)  # Slight contrast boost
+        if model_type == "dpt":
+            # DPT-Large: Strong smoothing
+            depth_image = depth_image.filter(ImageFilter.GaussianBlur(radius=2.5))
+            enhancer = ImageEnhance.Contrast(depth_image)
+            depth_image = enhancer.enhance(1.3)
+        elif model_type == "midas":
+            # MiDaS: Moderate smoothing
+            depth_image = depth_image.filter(ImageFilter.GaussianBlur(radius=1.5))
+            enhancer = ImageEnhance.Contrast(depth_image)
+            depth_image = enhancer.enhance(1.1)
+        else:
+            # Default processing
+            depth_image = depth_image.filter(ImageFilter.GaussianBlur(radius=2.0))
+            enhancer = ImageEnhance.Contrast(depth_image)
+            depth_image = enhancer.enhance(1.2)
         
         # Convert back to array and create RGB
         depth_array_final = np.array(depth_image)
