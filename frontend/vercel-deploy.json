@@ -1,8 +1,0 @@
-{
-  "deployment_trigger": true,
-  "timestamp": "2025-07-28T09:00:00Z",
-  "purpose": "Update backend URL to Hugging Face Space",
-  "backend_url": "https://tk156-depth-estimation-api.hf.space",
-  "project_id": "prj_u1by3sEALvlpWQx3KTZ5DoJRf7HH",
-  "status": "ready_for_deployment"
-}
