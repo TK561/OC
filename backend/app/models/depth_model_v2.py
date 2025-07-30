@@ -296,8 +296,9 @@ class DepthEstimatorV2:
             gamma = 0.9
             depth_normalized = np.power(depth_normalized, gamma)
             
-            # Invert so that closer objects are brighter (white=near, black=far)
-            depth_normalized = 1.0 - depth_normalized
+            # All models (DPT, MiDaS, Depth Anything) output inverse depth/disparity
+            # where larger values = closer objects
+            # So no inversion needed: keep larger values as white (near)
         else:
             depth_normalized = np.zeros_like(depth_array)
         
