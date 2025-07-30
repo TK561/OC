@@ -54,87 +54,140 @@ MODEL_CONFIGS = {
 model_cache = {}
 
 def midas_inspired_depth(image: Image.Image):
-    """MiDaS-inspired depth estimation using computer vision principles"""
+    """MiDaS風深度推定 - OpenCVスタイルのマルチスケール処理"""
     w, h = image.size
+    original_image = image.copy()
     
-    # Convert to LAB color space for better perceptual processing
-    lab = image.convert('LAB')
-    gray = image.convert('L')
+    # MiDaS風の前処理: 384x384にリサイズ（アスペクト比維持）
+    if w > h:
+        new_w, new_h = 384, int(384 * h / w)
+    else:
+        new_w, new_h = int(384 * w / h), 384
     
-    # Extract channels
-    l_channel, a_channel, b_channel = lab.split()
+    resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
     
-    # Create depth map
-    depth_img = Image.new('L', (w, h))
-    depth_pixels = depth_img.load()
+    # RGB値を[-1, 1]に正規化（MiDaS/DPTスタイル）
+    import numpy as np
+    img_array = np.array(resized, dtype=np.float32) / 255.0
+    img_array = (img_array - 0.5) / 0.5  # [-1, 1]正規化
     
-    # Get pixel data for analysis
-    l_pixels = l_channel.load()  # Lightness
-    a_pixels = a_channel.load()  # Green-Red
-    b_pixels = b_channel.load()  # Blue-Yellow  
-    gray_pixels = gray.load()    # Grayscale
+    # グレースケール変換
+    gray_array = np.dot(img_array[...,:3], [0.299, 0.587, 0.114])
     
-    # Pre-compute texture variance map
-    texture_map = compute_texture_variance(gray, w, h)
-    texture_pixels = texture_map.load()
+    # 疑似CNN処理: 複数フィルタでの特徴抽出
+    depth_features = []
     
-    for y in range(h):
-        for x in range(w):
-            # 1. **Perspective cue**: Objects lower in image are typically closer
-            # Vertical gradient from top (far) to bottom (near)
-            perspective_cue = (h - y) / h  # 0 at top, 1 at bottom
-            
-            # 2. **Brightness/Shading cue**: Brighter objects often appear closer
-            lightness = l_pixels[x, y] / 255.0
-            
-            # 3. **Texture gradient cue**: Fine textures appear closer than coarse ones
-            texture_strength = texture_pixels[x, y] / 255.0
-            
-            # 4. **Defocus cue**: Sharp areas are closer than blurry areas
-            # Approximate sharpness using local gradient magnitude
-            sharpness = 0.0
-            if 1 <= x < w-1 and 1 <= y < h-1:
-                # Sobel operator for edge detection (sharpness proxy)
-                gx = (-1*gray_pixels[x-1,y-1] + 1*gray_pixels[x+1,y-1] +
-                     -2*gray_pixels[x-1,y] + 2*gray_pixels[x+1,y] +
-                     -1*gray_pixels[x-1,y+1] + 1*gray_pixels[x+1,y+1])
-                
-                gy = (-1*gray_pixels[x-1,y-1] - 2*gray_pixels[x,y-1] - 1*gray_pixels[x+1,y-1] +
-                      1*gray_pixels[x-1,y+1] + 2*gray_pixels[x,y+1] + 1*gray_pixels[x+1,y+1])
-                
-                gradient_magnitude = math.sqrt(gx*gx + gy*gy)
-                sharpness = min(1.0, gradient_magnitude / (255.0 * 4))  # Normalize
-            
-            # 5. **Color cue**: Warmer colors (reds) often appear closer than cooler colors (blues)
-            color_warmth = (a_pixels[x, y] + 128) / 255.0  # A channel: green(-) to red(+)
-            
-            # 6. **Atmospheric perspective**: Reduce contrast for distant objects
-            contrast_factor = 1.0 - (y / h) * 0.3  # Less contrast at top (distance)
-            
-            # Combine depth cues using research-based weights
-            depth_value = (
-                0.30 * perspective_cue +       # Primary: vertical position
-                0.20 * lightness +             # Brightness/shading
-                0.20 * sharpness +             # Focus/defocus
-                0.15 * texture_strength +      # Texture gradient
-                0.10 * color_warmth +          # Color temperature
-                0.05 * contrast_factor         # Atmospheric perspective
-            )
-            
-            # Apply realistic depth curve (not linear)
-            depth_value = 1.0 - math.exp(-3.0 * depth_value)  # Exponential depth falloff
-            
-            # Ensure value is in valid range
-            depth_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
+    # Feature 1: Sobel edge detection (疑似gradient computation)
+    sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
+    sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.float32)
     
-    # Post-processing to enhance depth perception
-    # 1. Apply slight blur to simulate atmospheric perspective
-    depth_img = depth_img.filter(ImageFilter.GaussianBlur(radius=0.8))
+    grad_x = scipy_like_filter2d(gray_array, sobel_x)
+    grad_y = scipy_like_filter2d(gray_array, sobel_y)
+    gradient_mag = np.sqrt(grad_x**2 + grad_y**2)
+    depth_features.append(gradient_mag)
     
-    # 2. Enhance contrast while preserving gradients
-    depth_img = ImageOps.autocontrast(depth_img, cutoff=2)
+    # Feature 2: Laplacian of Gaussian (疑似multi-scale processing)
+    laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]], dtype=np.float32)
+    log_response = scipy_like_filter2d(gray_array, laplacian)
+    depth_features.append(np.abs(log_response))
     
-    return depth_img
+    # Feature 3: Gaussian blur differences (疑似scale-space)
+    blur1 = gaussian_blur_array(gray_array, radius=1)
+    blur2 = gaussian_blur_array(gray_array, radius=3)
+    scale_diff = np.abs(gray_array - blur1) + np.abs(blur1 - blur2)
+    depth_features.append(scale_diff)
+    
+    # Feature 4: Local variance (疑似texture analysis)
+    local_var = compute_local_variance_fast(gray_array, window=5)
+    depth_features.append(local_var)
+    
+    # 疑似CNN風の特徴結合
+    combined_features = np.zeros_like(gray_array)
+    weights = [0.3, 0.25, 0.25, 0.2]  # 特徴ごとの重み
+    
+    for i, feature in enumerate(depth_features):
+        # 正規化
+        if feature.max() > feature.min():
+            normalized = (feature - feature.min()) / (feature.max() - feature.min())
+        else:
+            normalized = feature
+        combined_features += weights[i] * normalized
+    
+    # 垂直位置バイアス（遠近法）
+    height_bias = np.linspace(1.0, 0.3, new_h).reshape(-1, 1)
+    height_bias = np.tile(height_bias, (1, new_w))
+    
+    # 最終的な深度マップ
+    pseudo_depth = combined_features * height_bias
+    
+    # MiDaSスタイルの逆深度変換
+    pseudo_depth = 1.0 / (pseudo_depth + 0.1)  # 逆深度
+    pseudo_depth = (pseudo_depth - pseudo_depth.min()) / (pseudo_depth.max() - pseudo_depth.min())
+    
+    # [0, 255]にスケール
+    depth_map = (pseudo_depth * 255).astype(np.uint8)
+    
+    # PIL Imageに変換
+    depth_pil = Image.fromarray(depth_map, mode='L')
+    
+    # 元のサイズに戻す（バイキュービック補間）
+    depth_final = depth_pil.resize((w, h), Image.Resampling.BICUBIC)
+    
+    # 後処理: 軽いぼかしとコントラスト調整
+    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.0))
+    depth_final = ImageOps.autocontrast(depth_final, cutoff=1)
+    
+    return depth_final
+
+def scipy_like_filter2d(image_array, kernel):
+    """SciPyのfilter2D風の実装（Pillowのみ使用）"""
+    h, w = image_array.shape
+    kh, kw = kernel.shape
+    pad_h, pad_w = kh // 2, kw // 2
+    
+    # パディング
+    padded = np.pad(image_array, ((pad_h, pad_h), (pad_w, pad_w)), mode='reflect')
+    result = np.zeros_like(image_array)
+    
+    for i in range(h):
+        for j in range(w):
+            region = padded[i:i+kh, j:j+kw]
+            result[i, j] = np.sum(region * kernel)
+    
+    return result
+
+def gaussian_blur_array(image_array, radius):
+    """NumPy配列でのガウシアンブラー近似"""
+    # 簡易ガウシアンカーネル
+    size = max(3, int(radius * 2) + 1)
+    if size % 2 == 0:
+        size += 1
+    
+    center = size // 2
+    kernel = np.zeros((size, size))
+    
+    for i in range(size):
+        for j in range(size):
+            x, y = i - center, j - center
+            kernel[i, j] = np.exp(-(x*x + y*y) / (2 * radius * radius))
+    
+    kernel /= kernel.sum()
+    
+    return scipy_like_filter2d(image_array, kernel)
+
+def compute_local_variance_fast(image_array, window):
+    """高速ローカル分散計算"""
+    h, w = image_array.shape
+    half_window = window // 2
+    variance_map = np.zeros_like(image_array)
+    
+    for i in range(half_window, h - half_window):
+        for j in range(half_window, w - half_window):
+            region = image_array[i-half_window:i+half_window+1, 
+                               j-half_window:j+half_window+1]
+            variance_map[i, j] = np.var(region)
+    
+    return variance_map
 
 def compute_texture_variance(gray_img, w, h):
     """Compute local texture variance using sliding window"""
