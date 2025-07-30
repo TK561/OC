@@ -270,7 +270,7 @@ export default function Home() {
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="text-center text-gray-600">
-            <p>&copy; 深度推定・3D可視化アプリ 2025 オープンキャンパス 塚本吉川研究室展示物</p>
+            <p>&copy; 深度推定・3D可視化アプリ<br />2025 オープンキャンパス 塚本吉川研究室展示物</p>
           </div>
         </div>
       </footer>
