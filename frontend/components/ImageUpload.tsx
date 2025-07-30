@@ -10,7 +10,7 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const sampleImages = [
-    { name: '風景', url: '/samples/R.jpg' },
+    { name: '風景', url: '/samples/landscape.jpeg' },
     { name: '建物', url: '/samples/OIP.webp' },
     { name: '人物', url: '/samples/tomcatDSC05027_TP_V.jpg' }
   ]
