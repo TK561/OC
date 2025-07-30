@@ -8,18 +8,19 @@ import os
 import math
 import logging
 from typing import Optional
+import numpy as np
 
-# PyTorch/Transformers imports with fallback
+# ONNX Runtime import with fallback
 try:
-    import torch
-    import numpy as np
-    from transformers import pipeline, DPTImageProcessor, DPTForDepthEstimation
-    TORCH_AVAILABLE = True
+    import onnxruntime as ort
+    import cv2
+    ONNX_AVAILABLE = True
+    print("✅ ONNX Runtime available")
 except ImportError:
-    TORCH_AVAILABLE = False
-    print("⚠️ PyTorch/Transformers not available, using Pillow-only mode")
+    ONNX_AVAILABLE = False
+    print("⚠️ ONNX Runtime not available, using Pillow-only mode")
 
-app = FastAPI(title="Hybrid Depth Estimation API")
+app = FastAPI(title="Lightweight Depth Estimation API")
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -36,93 +37,127 @@ app.add_middleware(
 
 # Model configurations
 MODEL_CONFIGS = {
-    "Intel/dpt-hybrid-midas": {
-        "name": "MiDaS v3.1",
-        "type": "dpt",
-        "size_mb": 470
+    "midas-small": {
+        "name": "MiDaS Small",
+        "type": "onnx",
+        "url": "https://github.com/intel-isl/MiDaS/releases/download/v2_1/model-small.onnx",
+        "size_mb": 25,
+        "input_size": (256, 256)
     },
-    "Intel/dpt-large": {
-        "name": "DPT-Large", 
-        "type": "dpt",
-        "size_mb": 1300
-    },
-    "depth-anything/Depth-Anything-V2-Small-hf": {
-        "name": "DepthAnything V2 Small",
-        "type": "pipeline",
-        "size_mb": 99
-    },
-    "depth-anything/Depth-Anything-V2-Base-hf": {
-        "name": "DepthAnything V2 Base",
-        "type": "pipeline", 
-        "size_mb": 390
-    },
-    "depth-anything/Depth-Anything-V2-Large-hf": {
-        "name": "DepthAnything V2 Large",
-        "type": "pipeline",
-        "size_mb": 1300
+    "depth-anything-small": {
+        "name": "DepthAnything Small (ONNX)",
+        "type": "onnx", 
+        "size_mb": 50,
+        "input_size": (518, 518)
     },
     "pillow-advanced": {
         "name": "Pillow Advanced CV",
         "type": "pillow",
-        "size_mb": 0
+        "size_mb": 0,
+        "input_size": (512, 512)
     }
 }
 
-# Global model cache (simple in-memory)
+# Simple model cache
 model_cache = {}
 
-def get_device():
-    """Get appropriate device for inference"""
-    if not TORCH_AVAILABLE:
-        return None
-    if torch.cuda.is_available():
-        return "cuda"
-    elif torch.backends.mps.is_available():
-        return "mps"
-    return "cpu"
-
-def load_model(model_name: str):
-    """Load model with caching"""
-    if model_name in model_cache:
-        logger.info(f"Using cached model: {model_name}")
-        return model_cache[model_name]
+def download_midas_small():
+    """Download MiDaS small model if not exists"""
+    model_path = "models/midas_small.onnx"
+    os.makedirs("models", exist_ok=True)
     
-    if not TORCH_AVAILABLE or model_name == "pillow-advanced":
-        logger.info("Using Pillow-only mode")
-        return None
-    
-    device = get_device()
-    logger.info(f"Loading model {model_name} on {device}")
+    if os.path.exists(model_path):
+        return model_path
     
     try:
-        config = MODEL_CONFIGS.get(model_name, {})
-        
-        if config.get("type") == "dpt":
-            # Load DPT models
-            processor = DPTImageProcessor.from_pretrained(model_name)
-            model = DPTForDepthEstimation.from_pretrained(model_name)
-            if device != "cpu":
-                model = model.to(device)
-            model_cache[model_name] = (model, processor, "dpt")
-            return model, processor, "dpt"
-        else:
-            # Load pipeline models (DepthAnything, etc)
-            pipe = pipeline("depth-estimation", model=model_name, device=0 if device != "cpu" else -1)
-            model_cache[model_name] = (pipe, None, "pipeline")
-            return pipe, None, "pipeline"
-            
+        import urllib.request
+        url = "https://github.com/intel-isl/MiDaS/releases/download/v2_1/model-small.onnx"
+        logger.info(f"Downloading MiDaS small model from {url}")
+        urllib.request.urlretrieve(url, model_path)
+        logger.info("✅ MiDaS small model downloaded")
+        return model_path
     except Exception as e:
-        logger.error(f"Failed to load model {model_name}: {e}")
-        # Fallback to Pillow
+        logger.error(f"❌ Failed to download MiDaS model: {e}")
         return None
 
-def clear_model_cache():
-    """Clear model cache to free memory"""
-    global model_cache
-    model_cache.clear()
-    if TORCH_AVAILABLE and torch.cuda.is_available():
-        torch.cuda.empty_cache()
-    logger.info("Model cache cleared")
+def load_onnx_model(model_name: str):
+    """Load ONNX model"""
+    if model_name in model_cache:
+        return model_cache[model_name]
+    
+    if not ONNX_AVAILABLE:
+        return None
+    
+    try:
+        if model_name == "midas-small":
+            model_path = download_midas_small()
+            if model_path and os.path.exists(model_path):
+                session = ort.InferenceSession(model_path)
+                model_cache[model_name] = session
+                logger.info(f"✅ Loaded ONNX model: {model_name}")
+                return session
+        
+        return None
+    except Exception as e:
+        logger.error(f"❌ Failed to load ONNX model {model_name}: {e}")
+        return None
+
+def preprocess_image_midas(image: Image.Image) -> np.ndarray:
+    """Preprocess image for MiDaS model"""
+    # Resize to 256x256
+    img = image.resize((256, 256), Image.Resampling.LANCZOS)
+    
+    # Convert to numpy array and normalize
+    img_array = np.array(img).astype(np.float32) / 255.0
+    
+    # Convert RGB to BGR (OpenCV format)
+    img_array = img_array[:, :, ::-1]
+    
+    # Normalize with ImageNet stats
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    img_array = (img_array - mean) / std
+    
+    # Add batch dimension and transpose to NCHW
+    img_array = np.transpose(img_array, (2, 0, 1))
+    img_array = np.expand_dims(img_array, axis=0)
+    
+    return img_array
+
+def onnx_depth_estimation(image: Image.Image, model_name: str):
+    """ONNX-based depth estimation"""
+    session = load_onnx_model(model_name)
+    if session is None:
+        return None
+    
+    try:
+        if model_name == "midas-small":
+            # Preprocess
+            input_tensor = preprocess_image_midas(image)
+            
+            # Run inference
+            input_name = session.get_inputs()[0].name
+            output_name = session.get_outputs()[0].name
+            
+            result = session.run([output_name], {input_name: input_tensor})
+            depth = result[0][0]  # Remove batch dimension
+            
+            # Normalize depth
+            depth = (depth - depth.min()) / (depth.max() - depth.min())
+            
+            # Resize back to original size
+            depth_resized = cv2.resize(depth, image.size, interpolation=cv2.INTER_LINEAR)
+            
+            # Convert to PIL Image
+            depth_img = Image.fromarray((depth_resized * 255).astype(np.uint8))
+            
+            return depth_img
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"ONNX inference failed: {e}")
+        return None
 
 # Pillow-based functions (kept from original)
 def advanced_edge_detection(image):
@@ -208,49 +243,6 @@ def pillow_depth_estimation(image):
     depth_img = depth_img.filter(ImageFilter.GaussianBlur(radius=1.5))
     return depth_img
 
-def pytorch_depth_estimation(image, model_name: str):
-    """PyTorch/Transformers based depth estimation"""
-    model_info = load_model(model_name)
-    if model_info is None:
-        # Fallback to Pillow
-        return pillow_depth_estimation(image)
-    
-    if len(model_info) == 3:
-        model_or_pipe, processor, model_type = model_info
-    else:
-        return pillow_depth_estimation(image)
-    
-    try:
-        if model_type == "dpt":
-            # DPT model processing
-            inputs = processor(images=image, return_tensors="pt")
-            device = next(model_or_pipe.parameters()).device
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            
-            with torch.no_grad():
-                outputs = model_or_pipe(**inputs)
-                predicted_depth = outputs.predicted_depth
-            
-            # Convert to numpy and normalize
-            depth = predicted_depth.squeeze().cpu().numpy()
-            depth = (depth - depth.min()) / (depth.max() - depth.min())
-            depth_img = Image.fromarray((depth * 255).astype(np.uint8))
-            
-        elif model_type == "pipeline":
-            # Pipeline model processing
-            result = model_or_pipe(image)
-            depth = np.array(result["depth"])
-            depth = (depth - depth.min()) / (depth.max() - depth.min())
-            depth_img = Image.fromarray((depth * 255).astype(np.uint8))
-        else:
-            depth_img = pillow_depth_estimation(image)
-            
-        return depth_img
-        
-    except Exception as e:
-        logger.error(f"PyTorch inference failed: {e}")
-        return pillow_depth_estimation(image)
-
 def apply_grayscale_depth_map(depth_image):
     """深度マップをグレースケール表示（白が近い、黒が遠い）"""
     w, h = depth_image.size
@@ -302,19 +294,19 @@ def generate_pointcloud(original_image, depth_image):
 async def root():
     models_available = list(MODEL_CONFIGS.keys())
     return {
-        "message": "Hybrid Depth Estimation API", 
+        "message": "Lightweight Depth Estimation API", 
         "status": "running",
-        "pytorch_available": TORCH_AVAILABLE,
+        "onnx_available": ONNX_AVAILABLE,
         "models": models_available,
-        "default_model": "depth-anything/Depth-Anything-V2-Base-hf" if TORCH_AVAILABLE else "pillow-advanced",
-        "version": "2.0.0"
+        "default_model": "midas-small" if ONNX_AVAILABLE else "pillow-advanced",
+        "version": "2.1.0"
     }
 
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy",
-        "pytorch_available": TORCH_AVAILABLE,
+        "onnx_available": ONNX_AVAILABLE,
         "cached_models": list(model_cache.keys())
     }
 
@@ -326,7 +318,7 @@ async def predict_depth(
     try:
         # Default model selection
         if model is None or model not in MODEL_CONFIGS:
-            model = "depth-anything/Depth-Anything-V2-Base-hf" if TORCH_AVAILABLE else "pillow-advanced"
+            model = "midas-small" if ONNX_AVAILABLE else "pillow-advanced"
         
         logger.info(f"Processing with model: {model}")
         
@@ -335,7 +327,7 @@ async def predict_depth(
         image = Image.open(io.BytesIO(contents)).convert('RGB')
         
         # Size limitation for memory
-        max_size = 768 if TORCH_AVAILABLE else 512
+        max_size = 768
         if max(image.size) > max_size:
             ratio = max_size / max(image.size)
             new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
@@ -344,8 +336,11 @@ async def predict_depth(
         logger.info(f"Image size: {image.size}")
         
         # Depth estimation
-        if TORCH_AVAILABLE and model != "pillow-advanced":
-            depth_gray = pytorch_depth_estimation(image, model)
+        if ONNX_AVAILABLE and model != "pillow-advanced":
+            depth_gray = onnx_depth_estimation(image, model)
+            if depth_gray is None:
+                depth_gray = pillow_depth_estimation(image)
+                model = "pillow-advanced"  # Update model name for response
         else:
             depth_gray = pillow_depth_estimation(image)
         
@@ -370,7 +365,7 @@ async def predict_depth(
             "model": model,
             "model_info": MODEL_CONFIGS.get(model, {}),
             "resolution": f"{image.size[0]}x{image.size[1]}",
-            "pytorch_available": TORCH_AVAILABLE
+            "onnx_available": ONNX_AVAILABLE
         })
         
     except Exception as e:
@@ -380,7 +375,8 @@ async def predict_depth(
 @app.post("/api/clear-cache")
 async def clear_cache():
     """Clear model cache to free memory"""
-    clear_model_cache()
+    global model_cache
+    model_cache.clear()
     return {"success": True, "message": "Model cache cleared"}
 
 if __name__ == "__main__":
