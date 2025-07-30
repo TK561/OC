@@ -10,9 +10,9 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const sampleImages = [
-    { name: '風景', url: '/samples/landscape.jpeg' },
+    { name: '風景', url: '/samples/landscape.jpg' },
     { name: '建物', url: '/samples/building.jpeg' },
-    { name: '動物', url: '/samples/animal.jpg' }
+    { name: '動物', url: '/samples/animal.jpeg' }
   ]
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
