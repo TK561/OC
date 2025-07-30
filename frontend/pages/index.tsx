@@ -10,6 +10,8 @@ export default function Home() {
   const [depthResult, setDepthResult] = useState<DepthEstimationResponse | null>(null)
   const [depthResults, setDepthResults] = useState<{[key: string]: DepthEstimationResponse}>({})
   const [isProcessing, setIsProcessing] = useState(false)
+  const [processingProgress, setProcessingProgress] = useState(0)
+  const [processingStatus, setProcessingStatus] = useState('')
   const [selectedModel, setSelectedModel] = useState('Intel/dpt-large')
   const [compareMode, setCompareMode] = useState(false)
   const [showModelInfo, setShowModelInfo] = useState(false)
@@ -26,12 +28,16 @@ export default function Home() {
     setDepthResult(null)
     setDepthResults({})
     setCompareMode(false)
+    setProcessingProgress(0)
+    setProcessingStatus('')
   }
 
   const handleDepthEstimation = async () => {
     if (!uploadedImage) return
 
     setIsProcessing(true)
+    setProcessingProgress(0)
+    setProcessingStatus('画像を準備中...')
     try {
       // Convert image to base64 data URL if needed
       let imageDataUrl = uploadedImage
@@ -46,6 +52,9 @@ export default function Home() {
       }
 
       console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
+      
+      setProcessingProgress(25)
+      setProcessingStatus('深度推定を実行中...')
       
       // Try Railway API first, fallback to mock
       try {
@@ -78,6 +87,8 @@ export default function Home() {
         })
         
         clearTimeout(timeoutId)
+        setProcessingProgress(75)
+        setProcessingStatus('結果を処理中...')
 
         if (response.ok) {
           const result = await response.json()
@@ -100,6 +111,8 @@ export default function Home() {
             }
             setDepthResult(newResult)
             setDepthResults(prev => ({...prev, [selectedModel]: newResult}))
+            setProcessingProgress(100)
+            setProcessingStatus('完了！')
             setActiveTab('depth')
             console.log('✅ Railway API depth estimation successful!')
             return
@@ -129,7 +142,11 @@ export default function Home() {
       console.error('All depth estimation methods failed:', error)
       alert('深度推定に失敗しました。画像を確認してもう一度お試しください。')
     } finally {
-      setIsProcessing(false)
+      setTimeout(() => {
+        setIsProcessing(false)
+        setProcessingProgress(0)
+        setProcessingStatus('')
+      }, 1500) // 完了メッセージを1.5秒表示
     }
   }
 
@@ -143,10 +160,20 @@ export default function Home() {
     ]
 
     setIsProcessing(true)
+    setProcessingProgress(0)
+    setProcessingStatus('全モデル比較を開始...')
     const newResults: {[key: string]: DepthEstimationResponse} = {}
 
     try {
-      for (const model of models) {
+      for (let i = 0; i < models.length; i++) {
+        const model = models[i]
+        const modelName = model === 'Intel/dpt-large' ? 'DPT-Large' :
+                         model === 'Intel/dpt-hybrid-midas' ? 'MiDaS' :
+                         'DepthAnything'
+        
+        setProcessingProgress(Math.round((i / models.length) * 90))
+        setProcessingStatus(`${modelName} で処理中... (${i + 1}/${models.length})`)
+        
         console.log(`Processing with ${model}...`)
         
         // Convert image to base64 data URL if needed
@@ -213,6 +240,8 @@ export default function Home() {
 
       // 結果を更新
       setDepthResults(newResults)
+      setProcessingProgress(100)
+      setProcessingStatus(`完了！ ${Object.keys(newResults).length}個のモデルで処理`)
       
       // 最初の成功した結果を表示
       const firstResult = Object.values(newResults)[0]
@@ -228,7 +257,11 @@ export default function Home() {
       console.error('Compare all models failed:', error)
       alert('一部のモデルで処理に失敗しました。')
     } finally {
-      setIsProcessing(false)
+      setTimeout(() => {
+        setIsProcessing(false)
+        setProcessingProgress(0)
+        setProcessingStatus('')
+      }, 1500) // 完了メッセージを1.5秒表示
     }
   }
 
@@ -242,30 +275,27 @@ export default function Home() {
               深度推定・3D可視化アプリ
             </h1>
             <div className="flex items-center space-x-4">
-              <div className="relative">
-                <label htmlFor="model-select" className="sr-only">深度推定モデル選択</label>
-                <select
-                  id="model-select"
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="input-field text-sm"
-                  title="深度推定モデル選択"
-                  aria-label="深度推定に使用するモデルを選択してください"
-                >
-                  <option value="Intel/dpt-large">DPT-Large (高精度・1.3GB)</option>
-                  <option value="Intel/dpt-hybrid-midas">MiDaS v3.1 (高速・470MB)</option>
-                  <option value="LiheYoung/depth-anything-large-hf">DepthAnything v1 (汎用・1.4GB)</option>
-                </select>
-                
-                {/* 情報ボタン */}
-                <button
-                  onClick={() => setShowModelInfo(!showModelInfo)}
-                  className="ml-2 w-6 h-6 bg-depth-600 text-white rounded-full flex items-center justify-center text-xs hover:bg-depth-700 transition-colors"
-                  title="モデル詳細情報"
-                >
-                  ?
-                </button>
-              </div>
+              <select
+                id="model-select"
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="input-field text-sm"
+                title="深度推定モデル選択"
+                aria-label="深度推定に使用するモデルを選択してください"
+              >
+                <option value="Intel/dpt-large">DPT-Large (高精度・1.3GB)</option>
+                <option value="Intel/dpt-hybrid-midas">MiDaS v3.1 (高速・470MB)</option>
+                <option value="LiheYoung/depth-anything-large-hf">DepthAnything v1 (汎用・1.4GB)</option>
+              </select>
+              
+              {/* 情報ボタン */}
+              <button
+                onClick={() => setShowModelInfo(!showModelInfo)}
+                className="w-6 h-6 bg-depth-600 text-white rounded-full flex items-center justify-center text-xs hover:bg-depth-700 transition-colors"
+                title="モデル詳細情報"
+              >
+                ?
+              </button>
             </div>
             
             {/* モデル説明パネル（別の位置に移動） */}
@@ -337,15 +367,31 @@ export default function Home() {
                     disabled={isProcessing}
                     className="btn-primary w-full"
                   >
-                    {isProcessing ? '処理中...' : '深度推定実行'}
+                    深度推定実行
                   </button>
                   <button
                     onClick={handleCompareAllModels}
                     disabled={isProcessing}
                     className="btn-secondary w-full text-sm"
                   >
-                    {isProcessing ? '処理中...' : '全モデルで比較実行'}
+                    全モデルで比較実行
                   </button>
+                  
+                  {/* プログレスバー */}
+                  {isProcessing && (
+                    <div className="mt-3 space-y-2">
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>{processingStatus}</span>
+                        <span>{processingProgress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-depth-600 h-2 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${processingProgress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
