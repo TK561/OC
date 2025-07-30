@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import ImageUpload from '@/components/ImageUpload'
 import DepthViewer from '@/components/DepthViewer'
 import ThreeScene from '@/components/ThreeScene'
@@ -12,6 +12,7 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [selectedModel, setSelectedModel] = useState('Intel/dpt-large')
   const [compareMode, setCompareMode] = useState(false)
+  const [showModelInfo, setShowModelInfo] = useState(false)
   const [viewerSettings, setViewerSettings] = useState<ViewerSettings>({
     colorMap: 'viridis',
     pointSize: 0.1,
@@ -256,12 +257,35 @@ export default function Home() {
                   <option value="LiheYoung/depth-anything-large-hf">DepthAnything v1 (汎用・1.4GB)</option>
                 </select>
                 
-                {/* モデル説明ツールチップ */}
-                <div className="absolute top-full mt-2 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-10 w-80 text-sm">
+                {/* 情報ボタン */}
+                <button
+                  onClick={() => setShowModelInfo(!showModelInfo)}
+                  className="ml-2 w-6 h-6 bg-depth-600 text-white rounded-full flex items-center justify-center text-xs hover:bg-depth-700 transition-colors"
+                  title="モデル詳細情報"
+                >
+                  ?
+                </button>
+              </div>
+            </div>
+            
+            {/* モデル説明パネル（別の位置に移動） */}
+            {showModelInfo && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowModelInfo(false)}>
+                <div className="bg-white rounded-lg shadow-xl p-6 max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">モデル詳細</h3>
+                    <button
+                      onClick={() => setShowModelInfo(false)}
+                      className="text-gray-400 hover:text-gray-600 text-xl"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
                   {selectedModel === 'Intel/dpt-large' && (
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">DPT-Large (Dense Prediction Transformer)</h4>
-                      <ul className="space-y-1 text-gray-600">
+                      <h4 className="font-semibold text-gray-900 mb-3">DPT-Large (Dense Prediction Transformer)</h4>
+                      <ul className="space-y-2 text-gray-600">
                         <li>• <strong>技術:</strong> Vision Transformer (ViT) ベース</li>
                         <li>• <strong>特徴:</strong> 細かい境界線と物体の輪郭を正確に検出</li>
                         <li>• <strong>得意:</strong> 建築物、家具、複雑な構造物</li>
@@ -271,8 +295,8 @@ export default function Home() {
                   )}
                   {selectedModel === 'Intel/dpt-hybrid-midas' && (
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">MiDaS v3.1 (Mixed Data Sampling)</h4>
-                      <ul className="space-y-1 text-gray-600">
+                      <h4 className="font-semibold text-gray-900 mb-3">MiDaS v3.1 (Mixed Data Sampling)</h4>
+                      <ul className="space-y-2 text-gray-600">
                         <li>• <strong>技術:</strong> CNN + Transformer ハイブリッド</li>
                         <li>• <strong>特徴:</strong> 滑らかで自然な深度変化</li>
                         <li>• <strong>得意:</strong> 風景、人物、多様なシーン</li>
@@ -282,8 +306,8 @@ export default function Home() {
                   )}
                   {selectedModel === 'LiheYoung/depth-anything-large-hf' && (
                     <div>
-                      <h4 className="font-semibold text-gray-900 mb-2">Depth Anything V1 (汎用深度推定)</h4>
-                      <ul className="space-y-1 text-gray-600">
+                      <h4 className="font-semibold text-gray-900 mb-3">Depth Anything V1 (汎用深度推定)</h4>
+                      <ul className="space-y-2 text-gray-600">
                         <li>• <strong>技術:</strong> 大規模データセット学習 Transformer</li>
                         <li>• <strong>特徴:</strong> あらゆる画像タイプに対応</li>
                         <li>• <strong>得意:</strong> 未知のシーン、多様な物体</li>
@@ -293,7 +317,7 @@ export default function Home() {
                   )}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </header>
