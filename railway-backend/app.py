@@ -54,84 +54,166 @@ MODEL_CONFIGS = {
 model_cache = {}
 
 def midas_inspired_depth(image: Image.Image):
-    """MiDaS-inspired depth estimation using Pillow only"""
+    """MiDaS-inspired depth estimation using realistic depth cues"""
     w, h = image.size
     
-    # MiDaS-style preprocessing simulation
-    resized = image.resize((256, 256), Image.Resampling.LANCZOS)
+    # Convert to different color spaces for analysis
+    hsv = image.convert('HSV')
+    lab = image.convert('LAB')
     
-    # Convert to grayscale for analysis
-    gray = resized.convert('L')
+    # Extract channels
+    h_channel, s_channel, v_channel = hsv.split()
+    l_channel, a_channel, b_channel = lab.split()
     
-    # MiDaS-like feature extraction
-    # Edge detection (simulates gradient features)
-    edges = gray.filter(ImageFilter.FIND_EDGES)
+    # Create depth map
+    depth_img = Image.new('L', (w, h))
+    depth_pixels = depth_img.load()
     
-    # Blur for depth-like features (simulates CNN pooling)
-    blurred = gray.filter(ImageFilter.GaussianBlur(radius=3))
+    # Get pixel data
+    v_pixels = v_channel.load()  # Brightness
+    s_pixels = s_channel.load()  # Saturation
+    l_pixels = l_channel.load()  # Lightness
     
-    # Sharpen for detail preservation
-    sharpened = gray.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+    for y in range(h):
+        for x in range(w):
+            # 1. Brightness cue (brighter = closer)
+            brightness = v_pixels[x, y] / 255.0
+            
+            # 2. Saturation cue (more saturated = closer)
+            saturation = s_pixels[x, y] / 255.0
+            
+            # 3. Vertical position cue (bottom = closer, top = farther)
+            vertical_factor = 1.0 - (y / h)  # Bottom is closer
+            
+            # 4. Center bias (objects often in center)
+            center_x, center_y = w // 2, h // 2
+            distance_from_center = math.sqrt((x - center_x)**2 + (y - center_y)**2)
+            max_distance = math.sqrt(center_x**2 + center_y**2)
+            center_factor = 1.0 - (distance_from_center / max_distance)
+            
+            # 5. Edge detection for object boundaries
+            # Sample surrounding pixels for edge detection
+            edge_strength = 0.0
+            if x > 0 and x < w-1 and y > 0 and y < h-1:
+                # Simple edge detection
+                dx = abs(l_pixels[x+1, y] - l_pixels[x-1, y]) / 255.0
+                dy = abs(l_pixels[x, y+1] - l_pixels[x, y-1]) / 255.0
+                edge_strength = (dx + dy) / 2.0
+            
+            # Combine all depth cues with realistic weights
+            depth_value = (
+                0.35 * brightness +          # Primary cue: brightness
+                0.25 * vertical_factor +     # Vertical position
+                0.15 * saturation +          # Color saturation
+                0.15 * center_factor +       # Center bias
+                0.10 * (1.0 - edge_strength) # Smooth areas closer
+            )
+            
+            # Ensure value is in valid range
+            depth_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
     
-    # Combine features (simulates MiDaS feature fusion)
-    combined = Image.blend(
-        Image.blend(edges, blurred, 0.6),
-        sharpened, 0.4
-    )
+    # Apply slight smoothing to reduce noise
+    depth_img = depth_img.filter(ImageFilter.GaussianBlur(radius=1.5))
     
-    # Enhance contrast (simulates final CNN layers)
-    enhanced = ImageOps.autocontrast(combined)
+    # Enhance contrast for better visibility
+    depth_img = ImageOps.autocontrast(depth_img)
     
-    # Apply median filter for noise reduction
-    filtered = enhanced.filter(ImageFilter.MedianFilter(size=3))
-    
-    # Resize back to original size
-    result = filtered.resize((w, h), Image.Resampling.LANCZOS)
-    
-    # Final enhancement
-    result = ImageOps.autocontrast(result)
-    
-    return result
+    return depth_img
 
 def dpt_inspired_depth(image: Image.Image):
-    """DPT-inspired depth estimation using advanced Pillow techniques"""
+    """DPT-inspired depth estimation with transformer-like multi-scale analysis"""
     w, h = image.size
     
-    # Multi-scale analysis (DPT-like)
-    scales = [1.0, 0.75, 0.5]
+    # Multi-scale processing like DPT's vision transformer
+    scales = [1.0, 0.75, 0.5, 0.25]
     depth_maps = []
+    
+    # Convert to LAB for better perceptual processing
+    lab = image.convert('LAB')
+    hsv = image.convert('HSV')
     
     for scale in scales:
         if scale != 1.0:
             new_size = (int(w * scale), int(h * scale))
-            scaled_img = image.resize(new_size, Image.Resampling.LANCZOS)
+            scaled_lab = lab.resize(new_size, Image.Resampling.LANCZOS)
+            scaled_hsv = hsv.resize(new_size, Image.Resampling.LANCZOS)
         else:
-            scaled_img = image
+            scaled_lab = lab
+            scaled_hsv = hsv
         
-        # Advanced edge detection
-        gray = scaled_img.convert('L')
-        edges = gray.filter(ImageFilter.FIND_EDGES)
+        scale_w, scale_h = scaled_lab.size
         
-        # Texture analysis
-        texture = gray.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+        # Extract channels
+        l_channel = scaled_lab.split()[0]
+        s_channel = scaled_hsv.split()[1]
+        v_channel = scaled_hsv.split()[2]
         
-        # Combine features
-        combined = ImageOps.autocontrast(
-            Image.blend(edges, texture, 0.5)
-        )
+        # Create scale-specific depth map
+        scale_depth = Image.new('L', (scale_w, scale_h))
+        scale_pixels = scale_depth.load()
         
+        l_pixels = l_channel.load()
+        s_pixels = s_channel.load()
+        v_pixels = v_channel.load()
+        
+        for y in range(scale_h):
+            for x in range(scale_w):
+                # Multi-cue depth estimation
+                lightness = l_pixels[x, y] / 255.0
+                saturation = s_pixels[x, y] / 255.0
+                brightness = v_pixels[x, y] / 255.0
+                
+                # Vertical gradient (perspective cue)
+                vertical_pos = 1.0 - (y / scale_h)
+                
+                # Scale-dependent weighting
+                scale_weight = scale * 0.5 + 0.5  # Smaller scales get less weight
+                
+                # Texture analysis using local variance
+                texture_strength = 0.0
+                if x > 1 and x < scale_w-2 and y > 1 and y < scale_h-2:
+                    # Calculate local variance
+                    local_sum = 0
+                    local_count = 0
+                    for dy in range(-1, 2):
+                        for dx in range(-1, 2):
+                            local_sum += l_pixels[x+dx, y+dy]
+                            local_count += 1
+                    local_mean = local_sum / local_count
+                    
+                    variance = 0
+                    for dy in range(-1, 2):
+                        for dx in range(-1, 2):
+                            diff = l_pixels[x+dx, y+dy] - local_mean
+                            variance += diff * diff
+                    texture_strength = min(1.0, variance / (255.0 * 255.0 * 9))
+                
+                # DPT-style combination with scale awareness
+                depth_value = (
+                    0.30 * brightness * scale_weight +      # Brightness
+                    0.25 * vertical_pos +                   # Perspective
+                    0.20 * saturation * scale_weight +      # Color info
+                    0.15 * texture_strength +               # Local texture
+                    0.10 * lightness                        # Lightness
+                )
+                
+                scale_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
+        
+        # Resize back to original size
         if scale != 1.0:
-            combined = combined.resize((w, h), Image.Resampling.LANCZOS)
+            scale_depth = scale_depth.resize((w, h), Image.Resampling.LANCZOS)
         
-        depth_maps.append(combined)
+        depth_maps.append(scale_depth)
     
-    # Fuse multiple scales (DPT-like fusion)
-    result = depth_maps[0]
-    for depth_map in depth_maps[1:]:
-        result = Image.blend(result, depth_map, 0.3)
+    # Multi-scale fusion (transformer-like attention)
+    result = depth_maps[0]  # Start with full resolution
+    for i, depth_map in enumerate(depth_maps[1:], 1):
+        # Weight smaller scales less
+        weight = 0.5 / (i + 1)
+        result = Image.blend(result, depth_map, weight)
     
-    # Post-processing
-    result = result.filter(ImageFilter.GaussianBlur(radius=1))
+    # Final refinement
+    result = result.filter(ImageFilter.GaussianBlur(radius=1.2))
     result = ImageOps.autocontrast(result)
     
     return result
