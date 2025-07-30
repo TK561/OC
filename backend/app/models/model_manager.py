@@ -62,6 +62,46 @@ class ModelManager:
                 "features": ["High generalization", "Works on any image"],
                 "input_size": 518,
                 "type": "depth_anything"
+            },
+            "depth-anything/Depth-Anything-V2-Small-hf": {
+                "name": "DepthAnything V2 Small",
+                "size": "99MB",
+                "description": "Lightweight V2 model",
+                "features": ["Very fast", "Low memory usage", "Good quality"],
+                "input_size": 518,
+                "type": "depth_anything_v2"
+            },
+            "depth-anything/Depth-Anything-V2-Base-hf": {
+                "name": "DepthAnything V2 Base",
+                "size": "390MB",
+                "description": "Balanced V2 model",
+                "features": ["Better accuracy", "Moderate speed", "Latest version"],
+                "input_size": 518,
+                "type": "depth_anything_v2"
+            },
+            "depth-anything/Depth-Anything-V2-Large-hf": {
+                "name": "DepthAnything V2 Large",
+                "size": "1.3GB",
+                "description": "Highest quality V2 model",
+                "features": ["Best accuracy", "State-of-the-art", "NeurIPS 2024"],
+                "input_size": 518,
+                "type": "depth_anything_v2"
+            },
+            "apple/DepthPro": {
+                "name": "DepthPro",
+                "size": "1.9GB",
+                "description": "Apple's metric depth model",
+                "features": ["Metric depth", "High resolution", "0.3s inference"],
+                "input_size": 1536,
+                "type": "depth_pro"
+            },
+            "Intel/zoedepth-nyu-kitti": {
+                "name": "ZoeDepth",
+                "size": "1.4GB",
+                "description": "Absolute depth estimation",
+                "features": ["Metric depth", "Indoor/outdoor", "Precise measurements"],
+                "input_size": 384,
+                "type": "zoedepth"
             }
         }
         
@@ -128,11 +168,12 @@ class ModelManager:
     def get_recommended_model(self, use_case: str = "general") -> str:
         """Get recommended model for specific use case"""
         recommendations = {
-            "speed": "Intel/dpt-hybrid-midas",
-            "accuracy": "Intel/dpt-large", 
-            "general": "LiheYoung/depth-anything-large-hf",
-            "mobile": "Intel/dpt-hybrid-midas"
-        }
+            "speed": "depth-anything/Depth-Anything-V2-Small-hf",
+            "accuracy": "depth-anything/Depth-Anything-V2-Large-hf", 
+            "general": "depth-anything/Depth-Anything-V2-Base-hf",
+            "mobile": "depth-anything/Depth-Anything-V2-Small-hf",
+            "metric": "apple/DepthPro",
+            "absolute": "Intel/zoedepth-nyu-kitti"
         
         return recommendations.get(use_case, settings.DEFAULT_DEPTH_MODEL)
     
@@ -142,7 +183,7 @@ class ModelManager:
             model_info = self.get_model_info(model_name)
             
             # Check if model type is supported
-            supported_types = ["dpt", "depth_anything"]
+            supported_types = ["dpt", "depth_anything", "depth_anything_v2", "depth_pro", "zoedepth"]
             if model_info.get("type") not in supported_types:
                 return False
             

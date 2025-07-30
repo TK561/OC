@@ -31,7 +31,7 @@ class DepthEstimator:
         try:
             logger.info(f"Loading model: {model_name}")
             
-            if "dpt" in model_name.lower():
+            if "dpt" in model_name.lower() and "depth" not in model_name.lower():
                 # Load with maximum memory optimization
                 processor = DPTImageProcessor.from_pretrained(
                     model_name,
@@ -45,8 +45,8 @@ class DepthEstimator:
                     low_cpu_mem_usage=True,
                     revision="main"
                 )
-            elif "depth-anything" in model_name.lower():
-                # Use pipeline for DepthAnything with memory optimization
+            elif "depth-anything" in model_name.lower() or "depthpro" in model_name.lower() or "zoedepth" in model_name.lower():
+                # Use pipeline for DepthAnything, DepthPro, and ZoeDepth with memory optimization
                 pipe = pipeline(
                     task="depth-estimation",
                     model=model_name,
@@ -123,8 +123,8 @@ class DepthEstimator:
             self._log_memory_usage("Model loaded, starting inference")
             
             # Handle different model types
-            if "depth-anything" in model_name.lower():
-                # DepthAnything using pipeline
+            if "depth-anything" in model_name.lower() or "depthpro" in model_name.lower() or "zoedepth" in model_name.lower():
+                # DepthAnything, DepthPro, and ZoeDepth using pipeline
                 result = model(original_image)
                 depth_map = result["depth"]
                 depth_array = np.array(depth_map)
@@ -219,7 +219,7 @@ class DepthEstimator:
             model_name = model_name or settings.LIGHTWEIGHT_MODEL
             model, processor = self._load_model(model_name)
             
-            if "depth-anything" in model_name.lower():
+            if "depth-anything" in model_name.lower() or "depthpro" in model_name.lower() or "zoedepth" in model_name.lower():
                 result = model(original_image)
                 depth_array = np.array(result["depth"])
             else:

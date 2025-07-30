@@ -22,13 +22,20 @@ class Settings(BaseSettings):
     HUGGINGFACE_TOKEN: str = os.getenv("HUGGINGFACE_TOKEN", "")
     
     # Memory-optimized model settings for free tier
-    LIGHTWEIGHT_MODEL: str = "Intel/dpt-hybrid-midas"  # Use MiDaS for minimal memory
-    DEFAULT_DEPTH_MODEL: str = "Intel/dpt-hybrid-midas"
+    LIGHTWEIGHT_MODEL: str = "depth-anything/Depth-Anything-V2-Small-hf"  # Use smallest V2 model
+    DEFAULT_DEPTH_MODEL: str = "depth-anything/Depth-Anything-V2-Base-hf"
     DEFAULT_RESOLUTION: int = 256  # Very low resolution for memory efficiency
     MAX_RESOLUTION: int = 384  # Maximum allowed resolution
     
     AVAILABLE_MODELS: List[str] = [
-        "Intel/dpt-hybrid-midas"  # Only lightweight model for free tier
+        "Intel/dpt-hybrid-midas",
+        "Intel/dpt-large",
+        "LiheYoung/depth-anything-large-hf",
+        "depth-anything/Depth-Anything-V2-Small-hf",
+        "depth-anything/Depth-Anything-V2-Base-hf",
+        "depth-anything/Depth-Anything-V2-Large-hf",
+        "apple/DepthPro",
+        "Intel/zoedepth-nyu-kitti"
     ]
     
     class Config:
