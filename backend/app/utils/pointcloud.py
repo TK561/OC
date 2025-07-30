@@ -77,17 +77,18 @@ def generate_pointcloud(
         depth_scale = 3.0  # より自然な3D表示のためのスケール調整
         depth_actual = depth_normalized * depth_scale
         
-        # Convert to 3D coordinates - 近い部分が盛り上がるように修正
-        # 深度値を反転：小さい値（近い）が手前に、大きい値（遠い）が奥に
-        z_inverted = (depth_scale - depth_actual) + 0.5  # 深度を反転してオフセット追加
-        x = (u_indices - cx) * z_inverted / fx * 0.8  # X方向をやや圧縮
-        y = (v_indices - cy) * z_inverted / fy * 0.8  # Y軸は画像と同じ向き（反転なし）
+        # Convert to 3D coordinates
+        # 深度マップ: 白い値（大きい値）= 近い、黒い値（小さい値）= 遠い
+        # そのまま使用（反転不要）
+        z_actual = depth_actual + 0.5  # オフセット追加のみ
+        x = (u_indices - cx) * z_actual / fx * 0.8  # X方向をやや圧縮
+        y = (v_indices - cy) * z_actual / fy * 0.8  # Y軸は画像と同じ向き（反転なし）
         
         # Filter out invalid points
-        valid_mask = (z_inverted > 0) & (z_inverted < depth_scale * 1.5)
+        valid_mask = (z_actual > 0) & (z_actual < depth_scale * 1.5)
         
         # Flatten and filter
-        points_3d = np.stack([x[valid_mask], y[valid_mask], z_inverted[valid_mask]], axis=1)
+        points_3d = np.stack([x[valid_mask], y[valid_mask], z_actual[valid_mask]], axis=1)
         colors = rgb_values[valid_mask].reshape(-1, 3) / 255.0
         
         # Limit number of points if necessary
