@@ -9,6 +9,7 @@ import math
 import logging
 from typing import Optional
 import requests
+import numpy as np
 
 app = FastAPI(title="DPT/MiDaS/DepthAnything Lightweight API")
 
@@ -67,7 +68,6 @@ def midas_inspired_depth(image: Image.Image):
     resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
     
     # RGB値を[-1, 1]に正規化（MiDaS/DPTスタイル）
-    import numpy as np
     img_array = np.array(resized, dtype=np.float32) / 255.0
     img_array = (img_array - 0.5) / 0.5  # [-1, 1]正規化
     
