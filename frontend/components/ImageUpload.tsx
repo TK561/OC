@@ -12,7 +12,7 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
   const sampleImages = [
     { name: '風景', url: '/samples/landscape.jpeg' },
     { name: '建物', url: '/samples/OIP.webp' },
-    { name: '人物', url: '/samples/tomcatDSC05027_TP_V.jpg' }
+    { name: '人物', url: '/samples/animal.jpg' }
   ]
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
