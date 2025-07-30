@@ -222,7 +222,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
   }
 
   const resetToInitialView = () => {
-    setRotation({ x: 0.2, y: 0.3 })  // 初期角度に戻す
+    setRotation({ x: 0, y: 0 })  // 初期角度に戻す
     setZoom(1.8)  // 初期ズームに戻す
   }
 
