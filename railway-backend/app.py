@@ -25,16 +25,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pillow-only implementations (Railway compatible) - 8 models to match frontend
+# Pillow-only implementations (Railway compatible) - 3 core models
 MODEL_CONFIGS = {
-    # Traditional models
-    "Intel/dpt-hybrid-midas": {
-        "name": "MiDaS v3.1 (DPT Hybrid)",
-        "type": "pillow_midas",
-        "size_mb": 0,
-        "input_size": 384,
-        "description": "MiDaS v3.1 Pillow implementation"
-    },
     "Intel/dpt-large": {
         "name": "DPT-Large",
         "type": "pillow_dpt_large", 
@@ -42,49 +34,19 @@ MODEL_CONFIGS = {
         "input_size": 384,
         "description": "DPT-Large Pillow implementation"
     },
+    "Intel/dpt-hybrid-midas": {
+        "name": "MiDaS v3.1 (DPT Hybrid)",
+        "type": "pillow_midas",
+        "size_mb": 0,
+        "input_size": 384,
+        "description": "MiDaS v3.1 Pillow implementation"
+    },
     "LiheYoung/depth-anything-large-hf": {
         "name": "DepthAnything v1 Large",
         "type": "pillow_depth_anything_v1",
         "size_mb": 0,
         "input_size": 518,
         "description": "DepthAnything v1 Large Pillow implementation"
-    },
-    # Latest models (2025)
-    "depth-anything/Depth-Anything-V2-Small-hf": {
-        "name": "DepthAnything V2 Small",
-        "type": "pillow_depth_anything_v2_small",
-        "size_mb": 0,
-        "input_size": 518,
-        "description": "DepthAnything V2 Small Pillow implementation"
-    },
-    "depth-anything/Depth-Anything-V2-Base-hf": {
-        "name": "DepthAnything V2 Base",
-        "type": "pillow_depth_anything_v2_base",
-        "size_mb": 0,
-        "input_size": 518,
-        "description": "DepthAnything V2 Base Pillow implementation"
-    },
-    "depth-anything/Depth-Anything-V2-Large-hf": {
-        "name": "DepthAnything V2 Large",
-        "type": "pillow_depth_anything_v2_large",
-        "size_mb": 0,
-        "input_size": 518,
-        "description": "DepthAnything V2 Large Pillow implementation"
-    },
-    # Specialized models
-    "apple/DepthPro": {
-        "name": "Apple DepthPro",
-        "type": "pillow_depthpro",
-        "size_mb": 0,
-        "input_size": 1024,
-        "description": "Apple DepthPro Pillow implementation"
-    },
-    "Intel/zoedepth-nyu-kitti": {
-        "name": "ZoeDepth (NYU+KITTI)",
-        "type": "pillow_zoedepth",
-        "size_mb": 0,
-        "input_size": 384,
-        "description": "ZoeDepth Pillow implementation"
     }
 }
 
@@ -482,7 +444,7 @@ async def root():
             }
             for k, v in MODEL_CONFIGS.items()
         ],
-        "default_model": "depth-anything/Depth-Anything-V2-Base-hf",
+        "default_model": "Intel/dpt-large",
         "version": "4.0.0"
     }
 
@@ -502,7 +464,7 @@ async def predict_depth(
     try:
         # Default model selection (match frontend default)
         if model is None or model not in MODEL_CONFIGS:
-            model = "depth-anything/Depth-Anything-V2-Base-hf"
+            model = "Intel/dpt-large"
         
         logger.info(f"Processing with model: {model}")
         
@@ -543,19 +505,9 @@ async def predict_depth(
             depth_gray = dpt_inspired_depth(image)
         elif model_type == "pillow_depth_anything_v1":
             depth_gray = depth_anything_inspired(image)
-        elif model_type == "pillow_depth_anything_v2_small":
-            depth_gray = depth_anything_v2_small(image)
-        elif model_type == "pillow_depth_anything_v2_base":
-            depth_gray = depth_anything_v2_base(image)
-        elif model_type == "pillow_depth_anything_v2_large":
-            depth_gray = depth_anything_v2_large(image)
-        elif model_type == "pillow_depthpro":
-            depth_gray = depthpro_inspired(image)
-        elif model_type == "pillow_zoedepth":
-            depth_gray = zoedepth_inspired(image)
         else:
-            # Default fallback
-            depth_gray = depth_anything_v2_base(image)
+            # Default fallback to DPT-Large
+            depth_gray = dpt_inspired_depth(image)
         
         # Apply grayscale colormap
         depth_colored = apply_grayscale_depth_map(depth_gray)

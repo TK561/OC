@@ -9,7 +9,7 @@ export default function Home() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [depthResult, setDepthResult] = useState<DepthEstimationResponse | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [selectedModel, setSelectedModel] = useState('depth-anything/Depth-Anything-V2-Base-hf')
+  const [selectedModel, setSelectedModel] = useState('Intel/dpt-large')
   const [viewerSettings, setViewerSettings] = useState<ViewerSettings>({
     colorMap: 'viridis',
     pointSize: 0.1,
@@ -145,20 +145,9 @@ export default function Home() {
                 title="深度推定モデル選択"
                 aria-label="深度推定に使用するモデルを選択してください"
               >
-                <optgroup label="従来モデル">
-                  <option value="Intel/dpt-hybrid-midas">MiDaS v3.1 (高速・470MB)</option>
-                  <option value="Intel/dpt-large">DPT-Large (高精度・1.3GB)</option>
-                  <option value="LiheYoung/depth-anything-large-hf">DepthAnything v1 (汎用・1.4GB)</option>
-                </optgroup>
-                <optgroup label="最新モデル (2025)">
-                  <option value="depth-anything/Depth-Anything-V2-Small-hf">DepthAnything V2 Small (軽量・99MB)</option>
-                  <option value="depth-anything/Depth-Anything-V2-Base-hf">DepthAnything V2 Base (バランス・390MB)</option>
-                  <option value="depth-anything/Depth-Anything-V2-Large-hf">DepthAnything V2 Large (最高精度・1.3GB)</option>
-                </optgroup>
-                <optgroup label="特殊用途">
-                  <option value="apple/DepthPro">Apple DepthPro (メトリック深度・1.9GB)</option>
-                  <option value="Intel/zoedepth-nyu-kitti">ZoeDepth (絶対深度・1.4GB)</option>
-                </optgroup>
+                <option value="Intel/dpt-large">DPT-Large (高精度・1.3GB)</option>
+                <option value="Intel/dpt-hybrid-midas">MiDaS v3.1 (高速・470MB)</option>
+                <option value="LiheYoung/depth-anything-large-hf">DepthAnything v1 (汎用・1.4GB)</option>
               </select>
             </div>
           </div>
