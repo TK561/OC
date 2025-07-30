@@ -291,8 +291,12 @@ class DepthEstimatorV2:
             # Normalize to 0-1 range
             depth_normalized = (depth_array - depth_min) / (depth_max - depth_min)
             
+            # Apply gamma correction for better depth perception
+            # Lower gamma (<1) enhances details in darker areas
+            gamma = 0.9
+            depth_normalized = np.power(depth_normalized, gamma)
+            
             # Invert so that closer objects are brighter (white=near, black=far)
-            # This matches the convention from the GitHub implementations
             depth_normalized = 1.0 - depth_normalized
         else:
             depth_normalized = np.zeros_like(depth_array)
@@ -300,8 +304,21 @@ class DepthEstimatorV2:
         # Convert to 8-bit grayscale
         depth_grayscale = (depth_normalized * 255).astype(np.uint8)
         
-        # Create RGB image
-        depth_rgb = np.stack([depth_grayscale] * 3, axis=-1)
+        # Create PIL image for post-processing
+        depth_image = Image.fromarray(depth_grayscale, mode='L')
+        
+        # Apply Gaussian blur for smoother gradients
+        from PIL import ImageFilter
+        depth_image = depth_image.filter(ImageFilter.GaussianBlur(radius=2.0))
+        
+        # Apply subtle contrast enhancement
+        from PIL import ImageEnhance
+        enhancer = ImageEnhance.Contrast(depth_image)
+        depth_image = enhancer.enhance(1.2)  # Slight contrast boost
+        
+        # Convert back to array and create RGB
+        depth_array_final = np.array(depth_image)
+        depth_rgb = np.stack([depth_array_final] * 3, axis=-1)
         
         return Image.fromarray(depth_rgb)
     

@@ -10,7 +10,7 @@ interface ThreeSceneProps {
 export default function ThreeScene({ originalImage, depthResult, settings }: ThreeSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [rotation, setRotation] = useState({ x: 0.2, y: 0.3 })  // 画像と同じ向きで見やすい角度
+  const [rotation, setRotation] = useState({ x: 0, y: 0 })  // 初期位置を0°に設定
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1.8)  // 初期ズームを大きく設定
