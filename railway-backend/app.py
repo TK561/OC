@@ -121,11 +121,19 @@ def midas_inspired_depth(image: Image.Image):
     pseudo_depth = combined_features * height_bias
     
     # MiDaSスタイルの逆深度変換
-    pseudo_depth = 1.0 / (pseudo_depth + 0.1)  # 逆深度
-    pseudo_depth = (pseudo_depth - pseudo_depth.min()) / (pseudo_depth.max() - pseudo_depth.min())
+    pseudo_inverse_depth = 1.0 / (pseudo_depth + 0.1)  # 逆深度
+    
+    # 正規化
+    if pseudo_inverse_depth.max() > pseudo_inverse_depth.min():
+        normalized = (pseudo_inverse_depth - pseudo_inverse_depth.min()) / (pseudo_inverse_depth.max() - pseudo_inverse_depth.min())
+    else:
+        normalized = pseudo_inverse_depth
+    
+    # MiDaSは逆深度を出力するため、大きな値=近い
+    # 白=近い、黒=遠いにするため、値をそのまま使用（逆深度なので既に正しい方向）
     
     # [0, 255]にスケール
-    depth_map = (pseudo_depth * 255).astype(np.uint8)
+    depth_map = (normalized * 255).astype(np.uint8)
     
     # PIL Imageに変換
     depth_pil = Image.fromarray(depth_map, mode='L')
@@ -232,197 +240,172 @@ def compute_texture_variance(gray_img, w, h):
     return variance_img
 
 def dpt_inspired_depth(image: Image.Image):
-    """DPT-inspired depth estimation using dense prediction principles"""
+    """DPT風深度推定 - GitHub調査に基づく逆深度処理"""
     w, h = image.size
     
-    # Multi-scale analysis inspired by DPT's transformer patches
-    scales = [1.0, 0.75, 0.5]  # Reduced scales for efficiency
-    depth_maps = []
+    # DPT風前処理（384x384リサイズ）
+    if w > h:
+        new_w, new_h = 384, int(384 * h / w)
+    else:
+        new_w, new_h = int(384 * w / h), 384
     
-    # Convert to multiple color spaces for rich feature extraction
-    lab = image.convert('LAB')
-    rgb = image
-    gray = image.convert('L')
+    resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    
+    # RGB値を[0,1]に正規化
+    img_array = np.array(resized, dtype=np.float32) / 255.0
+    
+    # グレースケール変換
+    gray_array = np.dot(img_array[...,:3], [0.299, 0.587, 0.114])
+    
+    # 疑似トランスフォーマー処理: マルチスケール特徴抽出
+    scales = [1.0, 0.75, 0.5]
+    scale_features = []
     
     for scale in scales:
         if scale != 1.0:
-            new_size = (int(w * scale), int(h * scale))
-            scaled_lab = lab.resize(new_size, Image.Resampling.LANCZOS)
-            scaled_rgb = rgb.resize(new_size, Image.Resampling.LANCZOS)
-            scaled_gray = gray.resize(new_size, Image.Resampling.LANCZOS)
+            scale_h, scale_w = int(new_h * scale), int(new_w * scale)
+            scaled_gray = np.array(Image.fromarray((gray_array * 255).astype(np.uint8)).resize((scale_w, scale_h), Image.Resampling.LANCZOS)) / 255.0
         else:
-            scaled_lab = lab
-            scaled_rgb = rgb
-            scaled_gray = gray
+            scaled_gray = gray_array
+            scale_h, scale_w = new_h, new_w
         
-        scale_w, scale_h = scaled_lab.size
+        # 密な予測のための特徴抽出
+        # 1. エッジ特徴（Transformer attentionを模擬）
+        sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
+        sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.float32)
         
-        # Extract channels
-        l_channel, a_channel, b_channel = scaled_lab.split()
-        r_channel, g_channel, b_rgb_channel = scaled_rgb.split()
+        grad_x = scipy_like_filter2d(scaled_gray, sobel_x)
+        grad_y = scipy_like_filter2d(scaled_gray, sobel_y)
+        edge_strength = np.sqrt(grad_x**2 + grad_y**2)
         
-        # Create scale-specific depth map using advanced depth cues
-        scale_depth = Image.new('L', (scale_w, scale_h))
-        scale_pixels = scale_depth.load()
+        # 2. テクスチャ特徴
+        laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]], dtype=np.float32)
+        texture_response = np.abs(scipy_like_filter2d(scaled_gray, laplacian))
         
-        # Load pixel data
-        l_pixels = l_channel.load()
-        a_pixels = a_channel.load()
-        r_pixels = r_channel.load()
-        g_pixels = g_channel.load()
-        b_pixels = b_rgb_channel.load()
-        gray_pixels = scaled_gray.load()
-        
-        for y in range(scale_h):
-            for x in range(scale_w):
-                # 1. **Linear perspective cue** - stronger at smaller scales
-                perspective_strength = (scale_h - y) / scale_h
-                perspective_weight = 1.0 / scale  # Stronger at smaller scales
-                perspective_cue = perspective_strength * perspective_weight
-                
-                # 2. **Shape-from-shading** using LAB lightness
-                lightness = l_pixels[x, y] / 255.0
-                
-                # 3. **Color constancy and aerial perspective**
-                # Blue shift indicates distance (atmospheric scattering)
-                blue_shift = b_pixels[x, y] / (r_pixels[x, y] + 1)  # Avoid division by zero
-                blue_shift = min(2.0, blue_shift)  # Clamp
-                atmospheric_cue = 1.0 - (blue_shift - 0.5) * 0.5  # Blue = far, Red = near
-                
-                # 4. **Texture gradient** - fine texture = near, coarse = far
-                texture_detail = 0.0
-                if 2 <= x < scale_w-2 and 2 <= y < scale_h-2:
-                    # Laplacian of Gaussian for texture analysis
-                    laplacian = (
-                        -1*gray_pixels[x-1,y-1] - 1*gray_pixels[x,y-1] - 1*gray_pixels[x+1,y-1] +
-                        -1*gray_pixels[x-1,y] + 8*gray_pixels[x,y] - 1*gray_pixels[x+1,y] +
-                        -1*gray_pixels[x-1,y+1] - 1*gray_pixels[x,y+1] - 1*gray_pixels[x+1,y+1]
-                    )
-                    texture_detail = min(1.0, abs(laplacian) / (255.0 * 4))
-                
-                # 5. **Occlusion boundaries** using edge information
-                edge_strength = 0.0
-                if 1 <= x < scale_w-1 and 1 <= y < scale_h-1:
-                    # Gradient magnitude
-                    gx = gray_pixels[x+1,y] - gray_pixels[x-1,y]
-                    gy = gray_pixels[x,y+1] - gray_pixels[x,y-1]
-                    edge_strength = math.sqrt(gx*gx + gy*gy) / (255.0 * 2)
-                    edge_strength = min(1.0, edge_strength)
-                
-                # Objects with strong edges are often closer
-                occlusion_cue = edge_strength
-                
-                # 6. **Scale-aware combination** (transformer-like attention)
-                scale_attention = scale  # Full scale gets most attention
-                
-                # Combine depth cues with scale-dependent weights
-                depth_value = (
-                    0.25 * perspective_cue * scale_attention +     # Perspective (scale-dependent)
-                    0.20 * lightness +                            # Shape-from-shading
-                    0.20 * texture_detail +                       # Texture gradient
-                    0.15 * atmospheric_cue +                      # Atmospheric perspective
-                    0.10 * occlusion_cue +                        # Occlusion boundaries
-                    0.10 * (1.0 - y/scale_h)                     # Simple height cue
-                )
-                
-                # Apply non-linear depth transformation
-                depth_value = depth_value ** 0.8  # Gamma correction for better perception
-                
-                scale_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
-        
-        # Resize back to original size with high-quality interpolation
+        # 特徴を元サイズにリサイズ
         if scale != 1.0:
-            scale_depth = scale_depth.resize((w, h), Image.Resampling.LANCZOS)
+            edge_strength = np.array(Image.fromarray((edge_strength * 255).astype(np.uint8)).resize((new_w, new_h), Image.Resampling.LANCZOS)) / 255.0
+            texture_response = np.array(Image.fromarray((texture_response * 255).astype(np.uint8)).resize((new_w, new_h), Image.Resampling.LANCZOS)) / 255.0
         
-        depth_maps.append(scale_depth)
+        # スケール重み付け
+        scale_weight = scale
+        combined_feature = (edge_strength * 0.6 + texture_response * 0.4) * scale_weight
+        scale_features.append(combined_feature)
     
-    # Dense prediction fusion (inspired by DPT's dense prediction head)
-    result = depth_maps[0]  # Start with full resolution
+    # マルチスケール融合（DPTのdense prediction head風）
+    fused_features = np.zeros_like(scale_features[0])
+    weights = [0.5, 0.3, 0.2]  # 大きなスケールほど重要
     
-    # Progressive fusion with attention-like weighting
-    for i, depth_map in enumerate(depth_maps[1:], 1):
-        fusion_weight = 0.3 / i  # Decrease weight for smaller scales
-        result = Image.blend(result, depth_map, fusion_weight)
+    for i, feature in enumerate(scale_features):
+        fused_features += feature * weights[i]
     
-    # Post-processing for realistic depth perception
-    # 1. Edge-preserving smoothing
-    result = result.filter(ImageFilter.MedianFilter(size=3))
+    # 垂直バイアス（透視）
+    height_bias = np.linspace(1.0, 0.4, new_h).reshape(-1, 1)
+    height_bias = np.tile(height_bias, (1, new_w))
     
-    # 2. Contrast enhancement with gamma correction
-    result = ImageOps.autocontrast(result, cutoff=1)
+    # 最終的な逆深度マップ（DPT風）
+    pseudo_inverse_depth = fused_features * height_bias
     
-    # 3. Final depth normalization
-    result_pixels = result.load()
-    for y in range(h):
-        for x in range(w):
-            # Apply subtle depth curve for more realistic falloff
-            normalized_depth = result_pixels[x, y] / 255.0
-            enhanced_depth = 1.0 - math.exp(-2.5 * normalized_depth)
-            result_pixels[x, y] = int(enhanced_depth * 255)
+    # DPTスタイルの正規化
+    if pseudo_inverse_depth.max() > pseudo_inverse_depth.min():
+        normalized = (pseudo_inverse_depth - pseudo_inverse_depth.min()) / (pseudo_inverse_depth.max() - pseudo_inverse_depth.min())
+    else:
+        normalized = pseudo_inverse_depth
     
-    return result
+    # DPTは逆深度を出力するため、大きな値=近い
+    # 白=近い、黒=遠いにするため、値を反転する
+    inverted_depth = 1.0 - normalized  # 反転処理
+    
+    # [0, 255]にスケール
+    depth_map = (inverted_depth * 255).astype(np.uint8)
+    
+    # PIL Imageに変換
+    depth_pil = Image.fromarray(depth_map, mode='L')
+    
+    # 元のサイズに戻す（バイキュービック補間）
+    depth_final = depth_pil.resize((w, h), Image.Resampling.BICUBIC)
+    
+    # 後処理
+    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.0))
+    depth_final = ImageOps.autocontrast(depth_final, cutoff=1)
+    
+    return depth_final
 
 def depth_anything_inspired(image: Image.Image):
-    """DepthAnything-inspired depth estimation"""
+    """DepthAnything風深度推定 - GitHub調査に基づく通常深度処理"""
     w, h = image.size
-    center_x, center_y = w // 2, h // 2
     
-    # Convert to different color spaces for rich features
-    lab = image.convert('LAB')
-    hsv = image.convert('HSV')
+    # DepthAnything風前処理（518x518リサイズ）
+    if w > h:
+        new_w, new_h = 518, int(518 * h / w)
+    else:
+        new_w, new_h = int(518 * w / h), 518
     
-    # Extract channels
-    l_channel = lab.split()[0]  # Lightness
-    h_channel = hsv.split()[0]  # Hue
-    s_channel = hsv.split()[1]  # Saturation
+    resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
     
-    # Advanced edge detection on multiple channels
-    l_edges = l_channel.filter(ImageFilter.FIND_EDGES)
-    h_edges = h_channel.filter(ImageFilter.FIND_EDGES)
+    # RGB値を[0,1]に正規化（ImageNet統計使用）
+    img_array = np.array(resized, dtype=np.float32) / 255.0
+    # ImageNet正規化: mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    img_array[:,:,0] = (img_array[:,:,0] - 0.485) / 0.229  # R
+    img_array[:,:,1] = (img_array[:,:,1] - 0.456) / 0.224  # G  
+    img_array[:,:,2] = (img_array[:,:,2] - 0.406) / 0.225  # B
     
-    # Texture analysis
-    l_texture = l_channel.filter(ImageFilter.UnsharpMask(radius=1, percent=200, threshold=2))
+    # グレースケール変換
+    gray_array = np.dot(img_array[...,:3], [0.299, 0.587, 0.114])
+    # 正規化の影響を調整
+    gray_array = (gray_array + 2.0) / 4.0  # [-2, 2] -> [0, 1]の概算
     
-    # Combine features
-    depth_img = Image.new('L', (w, h))
-    depth_pixels = depth_img.load()
+    # DepthAnything風特徴抽出
+    # 1. エッジ検出
+    sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
+    sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.float32)
     
-    l_edge_pixels = l_edges.load()
-    h_edge_pixels = h_edges.load()
-    l_texture_pixels = l_texture.load()
-    s_pixels = s_channel.load()
+    grad_x = scipy_like_filter2d(gray_array, sobel_x)
+    grad_y = scipy_like_filter2d(gray_array, sobel_y)
+    edge_magnitude = np.sqrt(grad_x**2 + grad_y**2)
     
-    max_distance = math.sqrt(center_x**2 + center_y**2)
+    # 2. ローカル分散（テクスチャ）
+    local_variance = compute_local_variance_fast(gray_array, window=5)
     
-    for y in range(h):
-        for x in range(w):
-            # Distance from center
-            distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
-            distance_norm = distance / max_distance
-            
-            # Feature values
-            l_edge_val = l_edge_pixels[x, y] / 255.0
-            h_edge_val = h_edge_pixels[x, y] / 255.0
-            texture_val = l_texture_pixels[x, y] / 255.0
-            saturation_val = s_pixels[x, y] / 255.0
-            
-            # DepthAnything-inspired combination
-            depth_value = (
-                0.3 * (1 - distance_norm) +      # Center bias
-                0.25 * texture_val +             # Texture information
-                0.2 * (1 - l_edge_val) +         # Lightness edges
-                0.15 * (1 - h_edge_val) +        # Hue edges  
-                0.1 * saturation_val             # Color saturation
-            )
-            
-            depth_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
+    # 3. 明度情報
+    brightness = np.clip(gray_array, 0, 1)
     
-    # Multi-step post-processing
-    depth_img = depth_img.filter(ImageFilter.MedianFilter(size=3))
-    depth_img = depth_img.filter(ImageFilter.GaussianBlur(radius=1.5))
-    depth_img = ImageOps.autocontrast(depth_img)
+    # 垂直位置（透視手がかり）
+    height_factor = np.linspace(0.2, 1.0, new_h).reshape(-1, 1)  # 上=遠い、下=近い
+    height_factor = np.tile(height_factor, (1, new_w))
     
-    return depth_img
+    # DepthAnything風特徴結合
+    depth_features = (
+        0.3 * brightness +                    # 明度
+        0.25 * (1.0 - edge_magnitude) +       # 滑らかな領域=近い
+        0.25 * local_variance +               # テクスチャ
+        0.2 * height_factor                   # 垂直位置
+    )
+    
+    # 正規化
+    if depth_features.max() > depth_features.min():
+        normalized_depth = (depth_features - depth_features.min()) / (depth_features.max() - depth_features.min())
+    else:
+        normalized_depth = depth_features
+    
+    # DepthAnythingは通常深度を出力（小さな値=近い）
+    # 白=近い、黒=遠いにするため、値を反転する
+    inverted_depth = 1.0 - normalized_depth  # 反転処理
+    
+    # [0, 255]にスケール
+    depth_map = (inverted_depth * 255).astype(np.uint8)
+    
+    # PIL Imageに変換
+    depth_pil = Image.fromarray(depth_map, mode='L')
+    
+    # 元のサイズに戻す（バイキュービック補間）
+    depth_final = depth_pil.resize((w, h), Image.Resampling.BICUBIC)
+    
+    # 後処理
+    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.5))
+    depth_final = ImageOps.autocontrast(depth_final)
+    
+    return depth_final
 
 def depth_anything_v2_small(image: Image.Image):
     """DepthAnything V2 Small - optimized for speed"""
