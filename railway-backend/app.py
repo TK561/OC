@@ -508,7 +508,20 @@ async def predict_depth(
         
         # Read and prepare image
         contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert('RGB')
+        logger.info(f"File size: {len(contents)} bytes, filename: {file.filename}")
+        
+        if len(contents) == 0:
+            raise ValueError("Empty file uploaded")
+        
+        try:
+            # Reset BytesIO position to start
+            image_bytes = io.BytesIO(contents)
+            image = Image.open(image_bytes)
+            image = image.convert('RGB')
+            logger.info(f"Successfully loaded image: {image.size}")
+        except Exception as img_error:
+            logger.error(f"Image loading error: {img_error}")
+            raise ValueError(f"Cannot process image file: {str(img_error)}")
         
         # Size limitation based on model
         config = MODEL_CONFIGS[model]
