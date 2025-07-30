@@ -685,11 +685,17 @@ async def predict_depth(
             raise ValueError("Empty file uploaded")
         
         try:
-            # Reset BytesIO position to start
+            # Reset BytesIO position to start and read image
             image_bytes = io.BytesIO(contents)
+            image_bytes.seek(0)  # Ensure we're at the beginning
             image = Image.open(image_bytes)
+            
+            # Handle different image formats
+            if image.format not in ['JPEG', 'PNG', 'BMP', 'TIFF', 'WEBP']:
+                logger.warning(f"Unusual image format: {image.format}")
+            
             image = image.convert('RGB')
-            logger.info(f"Successfully loaded image: {image.size}")
+            logger.info(f"Successfully loaded image: {image.size}, format: {image.format}")
         except Exception as img_error:
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
