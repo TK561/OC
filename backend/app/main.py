@@ -6,6 +6,7 @@ import logging
 from dotenv import load_dotenv
 
 from .routers import depth, processing
+from .routers import depth_v2
 from .config import settings
 
 # Configure logging
@@ -66,6 +67,7 @@ async def add_cors_headers(request, call_next):
     return response
 
 app.include_router(depth.router, prefix="/api/depth", tags=["depth"])
+app.include_router(depth_v2.router, prefix="/api/depth/v2", tags=["depth-v2"])
 app.include_router(processing.router, prefix="/api/processing", tags=["processing"])
 
 # Add static file serving for temporary files
