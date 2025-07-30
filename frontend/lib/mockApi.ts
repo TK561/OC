@@ -29,4 +29,4 @@ export async function createMockDepthMap(imageDataUrl: string): Promise<string> 
   });
 }
 
-export const MOCK_API_ENABLED = true;
+export const MOCK_API_ENABLED = false;
