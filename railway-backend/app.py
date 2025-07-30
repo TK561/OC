@@ -239,43 +239,80 @@ def depth_anything_inspired(image: Image.Image):
 def depth_anything_v2_small(image: Image.Image):
     """DepthAnything V2 Small - optimized for speed"""
     w, h = image.size
+    center_x, center_y = w // 2, h // 2
     
-    # Lightweight processing for V2 Small
+    # Convert to grayscale
     gray = image.convert('L')
     
-    # Simple edge detection
-    edges = gray.filter(ImageFilter.FIND_EDGES)
+    # Create depth based on distance from center + texture
+    depth_img = Image.new('L', (w, h))
+    depth_pixels = depth_img.load()
+    gray_pixels = gray.load()
     
-    # Basic texture enhancement
-    enhanced = ImageOps.autocontrast(edges)
+    max_distance = math.sqrt(center_x**2 + center_y**2)
     
-    # Light blur for smoothing
-    result = enhanced.filter(ImageFilter.GaussianBlur(radius=1))
+    for y in range(h):
+        for x in range(w):
+            # Distance from center (simulates depth)
+            distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
+            distance_norm = distance / max_distance
+            
+            # Brightness as depth cue
+            brightness = gray_pixels[x, y] / 255.0
+            
+            # Combine distance and brightness
+            depth_value = (
+                0.6 * (1 - distance_norm) +  # Center is closer
+                0.4 * brightness              # Brighter areas closer
+            )
+            
+            depth_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
+    
+    # Enhance contrast
+    result = ImageOps.autocontrast(depth_img)
     
     return result
 
 def depth_anything_v2_base(image: Image.Image):
     """DepthAnything V2 Base - balanced performance"""
     w, h = image.size
+    center_x, center_y = w // 2, h // 2
     
-    # Enhanced processing for V2 Base
+    # Convert to LAB for better depth cues
     lab = image.convert('LAB')
     l_channel = lab.split()[0]
     
-    # Multi-level edge detection
-    edges1 = l_channel.filter(ImageFilter.FIND_EDGES)
-    edges2 = l_channel.filter(ImageFilter.EDGE_ENHANCE)
+    # Create depth map
+    depth_img = Image.new('L', (w, h))
+    depth_pixels = depth_img.load()
+    l_pixels = l_channel.load()
     
-    # Combine edge information
-    combined = Image.blend(edges1, edges2, 0.5)
+    max_distance = math.sqrt(center_x**2 + center_y**2)
     
-    # Texture analysis
-    texture = l_channel.filter(ImageFilter.UnsharpMask(radius=1.5, percent=150, threshold=2))
+    for y in range(h):
+        for x in range(w):
+            # Distance from center
+            distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
+            distance_norm = distance / max_distance
+            
+            # Lightness as depth cue
+            lightness = l_pixels[x, y] / 255.0
+            
+            # Vertical position (top = far, bottom = close)
+            vertical_norm = y / h
+            
+            # Combine multiple depth cues
+            depth_value = (
+                0.4 * (1 - distance_norm) +  # Center bias
+                0.3 * lightness +            # Brighter = closer
+                0.3 * (1 - vertical_norm)    # Top = farther
+            )
+            
+            depth_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
     
-    # Final blend
-    result = Image.blend(combined, texture, 0.6)
+    # Apply smoothing and contrast enhancement
+    result = depth_img.filter(ImageFilter.GaussianBlur(radius=1))
     result = ImageOps.autocontrast(result)
-    result = result.filter(ImageFilter.MedianFilter(size=3))
     
     return result
 
@@ -376,9 +413,19 @@ def zoedepth_inspired(image: Image.Image):
 def apply_grayscale_depth_map(depth_image):
     """深度マップをグレースケール表示（白が近い、黒が遠い）"""
     w, h = depth_image.size
-    colored_img = Image.new('RGB', (w, h))
     
-    depth_pixels = depth_image.load()
+    # First, ensure good contrast and normalization
+    depth_normalized = ImageOps.autocontrast(depth_image)
+    
+    # Apply histogram equalization for better distribution
+    depth_equalized = ImageOps.equalize(depth_normalized)
+    
+    # Blend original and equalized for better results
+    depth_enhanced = Image.blend(depth_normalized, depth_equalized, 0.3)
+    
+    # Convert to RGB
+    colored_img = Image.new('RGB', (w, h))
+    depth_pixels = depth_enhanced.load()
     colored_pixels = colored_img.load()
     
     for y in range(h):
