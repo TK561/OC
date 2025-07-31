@@ -20,39 +20,64 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
   const handleGenerate3D = async (format: 'ply' | 'obj') => {
     setIsGenerating3D(true)
     try {
-      const formData = new FormData()
-      
-      // Get original image and add to form data
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}${depthResult.originalUrl}`)
-      const blob = await response.blob()
-      formData.append('file', blob, 'image.jpg')
-      formData.append('export_format', format)
-      formData.append('point_density', '1.0')
+      // Get the original image from the result
+      if (!depthResult.originalUrl) {
+        throw new Error('元画像データが見つかりません')
+      }
 
-      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/depth/generate-3d`, {
+      // Convert data URL to blob if needed
+      let imageBlob: Blob
+      if (depthResult.originalUrl.startsWith('data:')) {
+        // Data URL - convert to blob
+        const response = await fetch(depthResult.originalUrl)
+        imageBlob = await response.blob()
+      } else {
+        // Regular URL - fetch from backend
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}${depthResult.originalUrl}`)
+        if (!response.ok) {
+          throw new Error('元画像の取得に失敗しました')
+        }
+        imageBlob = await response.blob()
+      }
+
+      const formData = new FormData()
+      formData.append('file', imageBlob, 'image.jpg')
+      formData.append('model', depthResult.model || 'Intel/dpt-large')
+      formData.append('format', format)
+
+      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/export-3d`, {
         method: 'POST',
         body: formData,
       })
 
       if (!apiResponse.ok) {
-        throw new Error(`HTTP error! status: ${apiResponse.status}`)
+        const errorText = await apiResponse.text()
+        throw new Error(`API Error: ${apiResponse.status} - ${errorText}`)
       }
 
       // Download the generated file
       const resultBlob = await apiResponse.blob()
       const downloadUrl = window.URL.createObjectURL(resultBlob)
       
+      // Generate filename with model and timestamp
+      const modelName = depthResult.model?.replace('/', '_') || 'unknown'
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-')
+      const filename = `depth_${modelName}_${timestamp}.${format}`
+      
       const link = document.createElement('a')
       link.href = downloadUrl
-      link.download = `pointcloud.${format}`
+      link.download = filename
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       
       window.URL.revokeObjectURL(downloadUrl)
+      
+      console.log(`✅ ${format.toUpperCase()} file downloaded: ${filename}`)
     } catch (error) {
-      console.error('3D generation failed:', error)
-      alert('3Dデータ生成に失敗しました')
+      console.error('3D export failed:', error)
+      const errorMessage = error instanceof Error ? error.message : '不明なエラー'
+      alert(`3Dファイルの生成に失敗しました:\n${errorMessage}`)
     } finally {
       setIsGenerating3D(false)
     }

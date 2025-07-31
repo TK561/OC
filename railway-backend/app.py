@@ -1,12 +1,13 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from PIL import Image, ImageFilter, ImageOps, ImageEnhance
 import base64
 import io
 import os
 import math
 import logging
+import time
 from typing import Optional
 import requests
 import numpy as np
@@ -903,6 +904,143 @@ async def clear_cache():
     global model_cache
     model_cache.clear()
     return {"success": True, "message": "Model cache cleared"}
+
+def generate_ply_content(points, colors):
+    """Generate PLY file content from point cloud data"""
+    ply_header = f"""ply
+format ascii 1.0
+element vertex {len(points)}
+property float x
+property float y
+property float z
+property uchar red
+property uchar green
+property uchar blue
+end_header
+"""
+    
+    ply_data = []
+    for i, point in enumerate(points):
+        x, y, z = point
+        if i < len(colors):
+            r, g, b = colors[i]
+            # Convert from 0-1 range to 0-255 range
+            r_int = int(r * 255)
+            g_int = int(g * 255)
+            b_int = int(b * 255)
+        else:
+            r_int, g_int, b_int = 128, 128, 128  # Default gray
+        
+        ply_data.append(f"{x:.6f} {y:.6f} {z:.6f} {r_int} {g_int} {b_int}")
+    
+    return ply_header + "\n".join(ply_data)
+
+def generate_obj_content(points, colors):
+    """Generate OBJ file content from point cloud data"""
+    obj_lines = ["# Wavefront OBJ file generated from depth estimation"]
+    obj_lines.append("# Vertices with colors (as comments)")
+    obj_lines.append("")
+    
+    for i, point in enumerate(points):
+        x, y, z = point
+        obj_lines.append(f"v {x:.6f} {y:.6f} {z:.6f}")
+        
+        # Add color information as comments (OBJ doesn't natively support vertex colors)
+        if i < len(colors):
+            r, g, b = colors[i]
+            obj_lines.append(f"# color {r:.3f} {g:.3f} {b:.3f}")
+    
+    return "\n".join(obj_lines)
+
+@app.post("/api/export-3d")
+async def export_3d(
+    file: UploadFile = File(...),
+    model: str = Form("Intel/dpt-large"),
+    format: str = Form("ply")  # "ply" or "obj"
+):
+    """Export 3D point cloud as PLY or OBJ file"""
+    try:
+        # Process image and generate point cloud (reuse existing logic)
+        contents = await file.read()
+        
+        if len(contents) == 0:
+            raise ValueError("Empty file uploaded")
+        
+        try:
+            image_bytes = io.BytesIO(contents)
+            image_bytes.seek(0)
+            image = Image.open(image_bytes)
+            
+            # Apply EXIF orientation correction
+            try:
+                image = ImageOps.exif_transpose(image)
+                logger.info(f"After EXIF transpose: {image.size}")
+            except Exception as exif_error:
+                logger.warning(f"EXIF transpose failed: {exif_error}")
+            
+            image = image.convert('RGB')
+            
+        except Exception as img_error:
+            logger.error(f"Image loading error: {img_error}")
+            raise ValueError(f"Cannot process image file: {str(img_error)}")
+        
+        # Memory optimization for Railway
+        max_pixels = 250_000
+        current_pixels = image.size[0] * image.size[1]
+        
+        if current_pixels > max_pixels:
+            scale = (max_pixels / current_pixels) ** 0.5
+            new_width = int(image.size[0] * scale)
+            new_height = int(image.size[1] * scale)
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        original_size = image.size
+        config = MODEL_CONFIGS[model]
+        
+        # Generate depth map based on model
+        if config["type"] == "pillow_dpt_large":
+            depth_pil = dpt_large(image, original_size)
+        elif config["type"] == "pillow_midas":
+            depth_pil = midas_v3_1_dpt_hybrid(image, original_size)
+        elif config["type"] == "pillow_depth_anything":
+            depth_pil = depth_anything_inspired(image, original_size)
+        else:
+            raise ValueError(f"Unknown model type: {config['type']}")
+        
+        # Generate point cloud
+        point_cloud_result = generate_pointcloud(image, depth_pil)
+        
+        if not point_cloud_result or 'points' not in point_cloud_result or 'colors' not in point_cloud_result:
+            raise ValueError("Failed to generate point cloud data")
+        
+        points = point_cloud_result['points']
+        colors = point_cloud_result['colors']
+        
+        # Generate file content based on format
+        if format.lower() == "ply":
+            content = generate_ply_content(points, colors)
+            filename = f"depth_model_{model.replace('/', '_')}_{int(time.time())}.ply"
+            media_type = "application/octet-stream"
+        elif format.lower() == "obj":
+            content = generate_obj_content(points, colors)
+            filename = f"depth_model_{model.replace('/', '_')}_{int(time.time())}.obj"
+            media_type = "text/plain"
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+        
+        # Return file as download
+        return Response(
+            content=content.encode('utf-8'),
+            media_type=media_type,
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": media_type
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"3D export failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
