@@ -769,6 +769,9 @@ async def predict_depth(
         original_size = image.size
         logger.info(f"Stored original_size for depth functions: {original_size}")
         
+        # Get model configuration
+        config = MODEL_CONFIGS[model]
+        
         # Depth estimation based on model type
         model_type = config["type"]
         logger.info(f"Processing with model_type: {model_type}")
