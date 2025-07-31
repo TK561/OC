@@ -728,9 +728,9 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Size limitation - use reasonable max size instead of model input_size
-        # Model input_size is for internal processing, not user image limit
-        max_size = 2048  # Much more reasonable limit for user images
+        # Size limitation - revert to model-based sizing for stability
+        config = MODEL_CONFIGS[model]
+        max_size = 1024  # Compromise: larger than model input_size but not too large
         
         logger.info(f"Before size limitation: {image.size}")
         if max(image.size) > max_size:
@@ -750,40 +750,69 @@ async def predict_depth(
         
         # Depth estimation based on model type
         model_type = config["type"]
+        logger.info(f"Processing with model_type: {model_type}")
         
-        if model_type == "pillow_midas":
-            depth_gray = midas_inspired_depth(image, original_size)
-        elif model_type == "pillow_dpt_large":
-            depth_gray = dpt_inspired_depth(image, original_size)
-        elif model_type == "pillow_depth_anything_v1":
-            depth_gray = depth_anything_inspired(image, original_size)
-        else:
-            # Default fallback to DPT-Large
-            depth_gray = dpt_inspired_depth(image, original_size)
+        try:
+            if model_type == "pillow_midas":
+                depth_gray = midas_inspired_depth(image, original_size)
+            elif model_type == "pillow_dpt_large":
+                depth_gray = dpt_inspired_depth(image, original_size)
+            elif model_type == "pillow_depth_anything_v1":
+                depth_gray = depth_anything_inspired(image, original_size)
+            else:
+                # Default fallback to DPT-Large
+                logger.info(f"Unknown model_type {model_type}, using DPT fallback")
+                depth_gray = dpt_inspired_depth(image, original_size)
+            
+            logger.info(f"Depth estimation completed successfully. Result size: {depth_gray.size}")
+        except Exception as depth_error:
+            logger.error(f"Depth estimation failed: {depth_error}")
+            raise HTTPException(status_code=500, detail=f"Depth estimation failed: {str(depth_error)}")
         
         # Apply grayscale colormap
-        depth_colored = apply_grayscale_depth_map(depth_gray)
+        try:
+            depth_colored = apply_grayscale_depth_map(depth_gray)
+            logger.info(f"Colormap applied successfully. Size: {depth_colored.size}")
+        except Exception as colormap_error:
+            logger.error(f"Colormap application failed: {colormap_error}")
+            raise HTTPException(status_code=500, detail=f"Colormap processing failed: {str(colormap_error)}")
         
         # Generate point cloud
-        pointcloud_data = generate_pointcloud(image, depth_gray)
+        try:
+            pointcloud_data = generate_pointcloud(image, depth_gray)
+            logger.info(f"Point cloud generated successfully. Points: {pointcloud_data['count']}")
+        except Exception as pointcloud_error:
+            logger.error(f"Point cloud generation failed: {pointcloud_error}")
+            raise HTTPException(status_code=500, detail=f"Point cloud generation failed: {str(pointcloud_error)}")
         
         # Convert to base64
         def image_to_base64(img):
-            buffer = io.BytesIO()
-            img.save(buffer, format='PNG')
-            img_base64 = base64.b64encode(buffer.getvalue()).decode()
-            return f"data:image/png;base64,{img_base64}"
+            try:
+                buffer = io.BytesIO()
+                img.save(buffer, format='PNG')
+                img_base64 = base64.b64encode(buffer.getvalue()).decode()
+                return f"data:image/png;base64,{img_base64}"
+            except Exception as b64_error:
+                logger.error(f"Base64 conversion failed for image {img.size}: {b64_error}")
+                raise
         
-        return JSONResponse({
-            "success": True,
-            "originalUrl": image_to_base64(image),
-            "depthMapUrl": image_to_base64(depth_colored),
-            "pointcloudData": pointcloud_data,
-            "model": model,
-            "model_info": MODEL_CONFIGS.get(model, {}),
-            "resolution": f"{image.size[0]}x{image.size[1]}",
-            "algorithms": ["Edge Detection", "Texture Analysis", "Multi-scale Processing"]
-        })
+        try:
+            logger.info("Generating response...")
+            response_data = {
+                "success": True,
+                "originalUrl": image_to_base64(image),
+                "depthMapUrl": image_to_base64(depth_colored),
+                "pointcloudData": pointcloud_data,
+                "model": model,
+                "model_info": MODEL_CONFIGS.get(model, {}),
+                "resolution": f"{image.size[0]}x{image.size[1]}",
+                "algorithms": ["Edge Detection", "Texture Analysis", "Multi-scale Processing"]
+            }
+            logger.info("Response generated successfully")
+            return JSONResponse(response_data)
+        except Exception as response_error:
+            logger.error(f"Response generation failed: {response_error}")
+            raise HTTPException(status_code=500, detail=f"Response generation failed: {str(response_error)}")
         
     except Exception as e:
         logger.error(f"Prediction error: {e}")
