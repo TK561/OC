@@ -150,20 +150,19 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     # PIL Imageに変換
     logger.info(f"MiDaS - Before fromarray: depth_map.shape = {depth_map.shape}")
     
-    # Fix portrait image orientation - ensure depth map matches image dimensions
-    expected_shape = (new_h, new_w)
-    actual_shape = depth_map.shape
-    logger.info(f"MiDaS - Expected shape: {expected_shape}, Actual shape: {actual_shape}")
+    # Ensure depth map shape exactly matches image dimensions (h, w)
+    logger.info(f"MiDaS - Target image size: {new_w}x{new_h} (WxH)")
+    logger.info(f"MiDaS - Depth array shape: {depth_map.shape} (should be {new_h}x{new_w})")
     
-    # For portrait images, ensure height > width in both image and depth map
-    if new_h > new_w:  # Portrait image
-        if depth_map.shape[1] > depth_map.shape[0]:  # But depth map is landscape-oriented
-            logger.info("MiDaS - Portrait image: Transposing depth_map from landscape to portrait")
+    # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
+    if depth_map.shape != (new_h, new_w):
+        if depth_map.shape == (new_w, new_h):
+            logger.info("MiDaS - Transposing depth_map to match image dimensions")
             depth_map = depth_map.T
-    else:  # Landscape image  
-        if depth_map.shape[0] > depth_map.shape[1]:  # But depth map is portrait-oriented
-            logger.info("MiDaS - Landscape image: Transposing depth_map from portrait to landscape")
-            depth_map = depth_map.T
+        else:
+            logger.warning(f"MiDaS - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
+    
+    logger.info(f"MiDaS - Final depth_map shape: {depth_map.shape}")
     
     depth_pil = Image.fromarray(depth_map, mode='L')
     logger.info(f"MiDaS - After fromarray: depth_pil.size = {depth_pil.size}")
@@ -359,20 +358,19 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     # PIL Imageに変換
     logger.info(f"DPT - Before fromarray: depth_map.shape = {depth_map.shape}")
     
-    # Fix portrait image orientation - ensure depth map matches image dimensions
-    expected_shape = (new_h, new_w)
-    actual_shape = depth_map.shape
-    logger.info(f"DPT - Expected shape: {expected_shape}, Actual shape: {actual_shape}")
+    # Ensure depth map shape exactly matches image dimensions (h, w)
+    logger.info(f"DPT - Target image size: {new_w}x{new_h} (WxH)")
+    logger.info(f"DPT - Depth array shape: {depth_map.shape} (should be {new_h}x{new_w})")
     
-    # For portrait images, ensure height > width in both image and depth map
-    if new_h > new_w:  # Portrait image
-        if depth_map.shape[1] > depth_map.shape[0]:  # But depth map is landscape-oriented
-            logger.info("DPT - Portrait image: Transposing depth_map from landscape to portrait")
+    # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
+    if depth_map.shape != (new_h, new_w):
+        if depth_map.shape == (new_w, new_h):
+            logger.info("DPT - Transposing depth_map to match image dimensions")
             depth_map = depth_map.T
-    else:  # Landscape image  
-        if depth_map.shape[0] > depth_map.shape[1]:  # But depth map is portrait-oriented
-            logger.info("DPT - Landscape image: Transposing depth_map from portrait to landscape")
-            depth_map = depth_map.T
+        else:
+            logger.warning(f"DPT - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
+    
+    logger.info(f"DPT - Final depth_map shape: {depth_map.shape}")
     
     depth_pil = Image.fromarray(depth_map, mode='L')
     logger.info(f"DPT - After fromarray: depth_pil.size = {depth_pil.size}")
@@ -460,20 +458,19 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     # PIL Imageに変換
     logger.info(f"DepthAnything - Before fromarray: depth_map.shape = {depth_map.shape}")
     
-    # Fix portrait image orientation - ensure depth map matches image dimensions
-    expected_shape = (new_h, new_w)
-    actual_shape = depth_map.shape
-    logger.info(f"DepthAnything - Expected shape: {expected_shape}, Actual shape: {actual_shape}")
+    # Ensure depth map shape exactly matches image dimensions (h, w)
+    logger.info(f"DepthAnything - Target image size: {new_w}x{new_h} (WxH)")
+    logger.info(f"DepthAnything - Depth array shape: {depth_map.shape} (should be {new_h}x{new_w})")
     
-    # For portrait images, ensure height > width in both image and depth map
-    if new_h > new_w:  # Portrait image
-        if depth_map.shape[1] > depth_map.shape[0]:  # But depth map is landscape-oriented
-            logger.info("DepthAnything - Portrait image: Transposing depth_map from landscape to portrait")
+    # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
+    if depth_map.shape != (new_h, new_w):
+        if depth_map.shape == (new_w, new_h):
+            logger.info("DepthAnything - Transposing depth_map to match image dimensions")
             depth_map = depth_map.T
-    else:  # Landscape image  
-        if depth_map.shape[0] > depth_map.shape[1]:  # But depth map is portrait-oriented
-            logger.info("DepthAnything - Landscape image: Transposing depth_map from portrait to landscape")
-            depth_map = depth_map.T
+        else:
+            logger.warning(f"DepthAnything - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
+    
+    logger.info(f"DepthAnything - Final depth_map shape: {depth_map.shape}")
     
     depth_pil = Image.fromarray(depth_map, mode='L')
     logger.info(f"DepthAnything - After fromarray: depth_pil.size = {depth_pil.size}")
