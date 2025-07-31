@@ -781,6 +781,11 @@ async def predict_depth(
             logger.info(f"Original image before convert: {image.size}, mode: {image.mode}, format: {image.format}")
             image = image.convert('RGB')
             logger.info(f"After RGB conversion: {image.size}")
+            
+            # CRITICAL: Save original image BEFORE any resizing for response
+            original_image = image.copy()
+            logger.info(f"Saved original image copy: {original_image.size}")
+            
         except Exception as img_error:
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
@@ -796,6 +801,7 @@ async def predict_depth(
             new_height = int(image.size[1] * scale)
             logger.info(f"Railway memory optimization: Resizing from {image.size[0]}x{image.size[1]} to {new_width}x{new_height} (scale: {scale:.3f})")
             image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            logger.info(f"Processing with resized image: {image.size}")
         else:
             logger.info(f"Image size {image.size[0]}x{image.size[1]} is within Railway memory limits")
         
@@ -837,9 +843,9 @@ async def predict_depth(
             logger.error(f"Colormap application failed: {colormap_error}")
             raise HTTPException(status_code=500, detail=f"Colormap processing failed: {str(colormap_error)}")
         
-        # Generate point cloud
+        # Generate point cloud using original image
         try:
-            pointcloud_data = generate_pointcloud(image, depth_gray)
+            pointcloud_data = generate_pointcloud(original_image, depth_gray)
             logger.info(f"Point cloud generated successfully. Points: {pointcloud_data['count']}")
         except Exception as pointcloud_error:
             logger.error(f"Point cloud generation failed: {pointcloud_error}")
@@ -860,12 +866,12 @@ async def predict_depth(
             logger.info("Generating response...")
             response_data = {
                 "success": True,
-                "originalUrl": image_to_base64(image),
+                "originalUrl": image_to_base64(original_image),
                 "depthMapUrl": image_to_base64(depth_colored),
                 "pointcloudData": pointcloud_data,
                 "model": model,
                 "model_info": MODEL_CONFIGS.get(model, {}),
-                "resolution": f"{image.size[0]}x{image.size[1]}",
+                "resolution": f"{original_image.size[0]}x{original_image.size[1]}",
                 "algorithms": ["Edge Detection", "Texture Analysis", "Multi-scale Processing"]
             }
             logger.info("Response generated successfully")
