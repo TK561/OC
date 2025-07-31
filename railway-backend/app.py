@@ -692,7 +692,7 @@ def apply_grayscale_depth_map(depth_image):
 def generate_pointcloud(original_image, depth_image):
     """3Dポイントクラウドデータ生成"""
     w, h = original_image.size
-    downsample_factor = 4
+    downsample_factor = 8  # Increased from 4 to 8 for memory efficiency
     points = []
     colors = []
     
@@ -790,8 +790,8 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Aggressive size limitation for Railway memory constraints
-        max_pixels = 800_000  # About 894x894 or 1200x667, aggressive memory saving
+        # Ultra-aggressive size limitation for Railway memory constraints
+        max_pixels = 400_000  # About 632x632 or 800x500, ultra memory saving
         current_pixels = image.size[0] * image.size[1]
         
         if current_pixels > max_pixels:
