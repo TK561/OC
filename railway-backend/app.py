@@ -142,12 +142,12 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     # PIL Imageに変換
     logger.info(f"MiDaS - Before fromarray: depth_map.shape = {depth_map.shape}")
     
-    # Fix: Ensure depth map matches the expected dimensions
+    # CRITICAL FIX: Check if image orientation needs correction
     if depth_map.shape[0] != new_h or depth_map.shape[1] != new_w:
         logger.warning(f"MiDaS - Depth array shape mismatch! Expected ({new_h}, {new_w}), got {depth_map.shape}")
-        # Only transpose if we're completely sure about the mismatch pattern
-        # For portrait images, this should NOT be needed if PIL processing is correct
-        logger.info("MiDaS - Shape mismatch detected, but keeping original orientation")
+        if depth_map.shape[0] == new_w and depth_map.shape[1] == new_h:
+            logger.info("MiDaS - Transposing depth_map to fix orientation")
+            depth_map = depth_map.T
     
     depth_pil = Image.fromarray(depth_map, mode='L')
     logger.info(f"MiDaS - After fromarray: depth_pil.size = {depth_pil.size}")
@@ -343,12 +343,12 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     # PIL Imageに変換
     logger.info(f"DPT - Before fromarray: depth_map.shape = {depth_map.shape}")
     
-    # Fix: Ensure depth map matches the expected dimensions  
+    # CRITICAL FIX: Check if image orientation needs correction
     if depth_map.shape[0] != new_h or depth_map.shape[1] != new_w:
         logger.warning(f"DPT - Depth array shape mismatch! Expected ({new_h}, {new_w}), got {depth_map.shape}")
-        # Only transpose if we're completely sure about the mismatch pattern
-        # For portrait images, this should NOT be needed if PIL processing is correct
-        logger.info("DPT - Shape mismatch detected, but keeping original orientation")
+        if depth_map.shape[0] == new_w and depth_map.shape[1] == new_h:
+            logger.info("DPT - Transposing depth_map to fix orientation")
+            depth_map = depth_map.T
     
     depth_pil = Image.fromarray(depth_map, mode='L')
     logger.info(f"DPT - After fromarray: depth_pil.size = {depth_pil.size}")
@@ -436,12 +436,12 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     # PIL Imageに変換
     logger.info(f"DepthAnything - Before fromarray: depth_map.shape = {depth_map.shape}")
     
-    # Fix: Ensure depth map matches the expected dimensions
+    # CRITICAL FIX: Check if image orientation needs correction
     if depth_map.shape[0] != new_h or depth_map.shape[1] != new_w:
         logger.warning(f"DepthAnything - Depth array shape mismatch! Expected ({new_h}, {new_w}), got {depth_map.shape}")
-        # Only transpose if we're completely sure about the mismatch pattern
-        # For portrait images, this should NOT be needed if PIL processing is correct
-        logger.info("DepthAnything - Shape mismatch detected, but keeping original orientation")
+        if depth_map.shape[0] == new_w and depth_map.shape[1] == new_h:
+            logger.info("DepthAnything - Transposing depth_map to fix orientation")
+            depth_map = depth_map.T
     
     depth_pil = Image.fromarray(depth_map, mode='L')
     logger.info(f"DepthAnything - After fromarray: depth_pil.size = {depth_pil.size}")
