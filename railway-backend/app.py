@@ -142,11 +142,14 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     depth_map = (normalized * 255).astype(np.uint8)
     
     # PIL Imageに変換
+    logger.info(f"MiDaS - Before fromarray: depth_map.shape = {depth_map.shape}")
     depth_pil = Image.fromarray(depth_map, mode='L')
+    logger.info(f"MiDaS - After fromarray: depth_pil.size = {depth_pil.size}")
     
     # 元のサイズに戻す（バイキュービック補間）
     target_size = original_size if original_size else (w, h)
     logger.info(f"MiDaS - Resizing depth map from {depth_pil.size} to target_size: {target_size}")
+    logger.info(f"MiDaS - Original image was: (w={w}, h={h}), target_size is: {target_size}")
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     logger.info(f"MiDaS - Final depth map size: {depth_final.size}")
     
@@ -334,11 +337,14 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     depth_map = (inverted_depth * 255).astype(np.uint8)
     
     # PIL Imageに変換
+    logger.info(f"DPT - Before fromarray: depth_map.shape = {depth_map.shape}")
     depth_pil = Image.fromarray(depth_map, mode='L')
+    logger.info(f"DPT - After fromarray: depth_pil.size = {depth_pil.size}")
     
     # 元のサイズに戻す（バイキュービック補間）
     target_size = original_size if original_size else (w, h)
     logger.info(f"DPT - Resizing depth map from {depth_pil.size} to target_size: {target_size}")
+    logger.info(f"DPT - Original image was: (w={w}, h={h}), target_size is: {target_size}")
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     logger.info(f"DPT - Final depth map size: {depth_final.size}")
     
@@ -418,11 +424,14 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     depth_map = (inverted_depth * 255).astype(np.uint8)
     
     # PIL Imageに変換
+    logger.info(f"DepthAnything - Before fromarray: depth_map.shape = {depth_map.shape}")
     depth_pil = Image.fromarray(depth_map, mode='L')
+    logger.info(f"DepthAnything - After fromarray: depth_pil.size = {depth_pil.size}")
     
     # 元のサイズに戻す（バイキュービック補間）
     target_size = original_size if original_size else (w, h)
     logger.info(f"DepthAnything - Resizing depth map from {depth_pil.size} to target_size: {target_size}")
+    logger.info(f"DepthAnything - Original image was: (w={w}, h={h}), target_size is: {target_size}")
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     logger.info(f"DepthAnything - Final depth map size: {depth_final.size}")
     
