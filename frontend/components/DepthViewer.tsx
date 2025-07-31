@@ -120,13 +120,13 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             {/* Original Image */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-gray-700">元画像</h3>
-              <div className="bg-white rounded border overflow-hidden" style={{ aspectRatio: 'auto' }}>
+              <div className="bg-white rounded border overflow-hidden flex items-center justify-center min-h-48">
                 {depthResult.originalUrl ? (
                   <img
                     key={`original-${depthResult.originalUrl}`}
                     src={getImageUrl(depthResult.originalUrl)}
                     alt="Original"
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-full object-contain"
                     onError={(e) => {
                       console.error('Failed to load original image:', depthResult.originalUrl)
                       const errorUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Loading Error</text></svg>'
@@ -146,13 +146,13 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             {/* Depth Map */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-gray-700">深度マップ</h3>
-              <div className="bg-white rounded border overflow-hidden" style={{ aspectRatio: 'auto' }}>
+              <div className="bg-white rounded border overflow-hidden flex items-center justify-center min-h-48">
                 {depthResult.depthMapUrl ? (
                   <img
                     key={`depth-${depthResult.depthMapUrl}`}
                     src={getImageUrl(depthResult.depthMapUrl)}
                     alt="Depth Map"
-                    className="w-full h-full object-contain"
+                    className="max-w-full max-h-full object-contain"
                     onError={(e) => {
                       console.error('Failed to load depth map:', depthResult.depthMapUrl)
                       const errorUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Loading Error</text></svg>'
@@ -170,13 +170,13 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             </div>
           </div>
         ) : (
-          <div className="bg-white rounded border overflow-hidden" style={{ aspectRatio: 'auto' }}>
+          <div className="bg-white rounded border overflow-hidden flex items-center justify-center min-h-96">
             {depthResult.depthMapUrl ? (
               <img
                 key={`single-depth-${depthResult.depthMapUrl}`}
                 src={getImageUrl(depthResult.depthMapUrl)}
                 alt="Depth Map"
-                className="w-full h-full object-contain"
+                className="max-w-full max-h-full object-contain"
                 onError={(e) => {
                   console.error('Failed to load depth map (single view):', depthResult.depthMapUrl)
                   const errorUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNjc3NDg5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSI+Loading Error</text></svg>'

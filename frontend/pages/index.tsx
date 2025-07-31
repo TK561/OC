@@ -64,14 +64,18 @@ export default function Home() {
         // ファイルアップロード用のFormData作成
         const formData = new FormData()
         
-        // Base64をBlobに変換
+        // Base64をBlobに変換（元のMIMEタイプを保持）
+        const mimeMatch = imageDataUrl.match(/data:([^;]+);/)
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+        console.log('Original image MIME type:', mimeType)
+        
         const byteCharacters = atob(imageDataUrl.split(',')[1])
         const byteNumbers = new Array(byteCharacters.length)
         for (let i = 0; i < byteCharacters.length; i++) {
           byteNumbers[i] = byteCharacters.charCodeAt(i)
         }
         const byteArray = new Uint8Array(byteNumbers)
-        const blob = new Blob([byteArray], { type: 'image/jpeg' })
+        const blob = new Blob([byteArray], { type: mimeType })
         
         formData.append('file', blob, 'image.jpg')
         formData.append('model', selectedModel)
@@ -192,14 +196,18 @@ export default function Home() {
           // ファイルアップロード用のFormData作成
           const formData = new FormData()
           
-          // Base64をBlobに変換
+          // Base64をBlobに変換（元のMIMEタイプを保持）
+          const mimeMatch = imageDataUrl.match(/data:([^;]+);/)
+          const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+          console.log(`Model ${model} - Original image MIME type:`, mimeType)
+          
           const byteCharacters = atob(imageDataUrl.split(',')[1])
           const byteNumbers = new Array(byteCharacters.length)
           for (let i = 0; i < byteCharacters.length; i++) {
             byteNumbers[i] = byteCharacters.charCodeAt(i)
           }
           const byteArray = new Uint8Array(byteNumbers)
-          const blob = new Blob([byteArray], { type: 'image/jpeg' })
+          const blob = new Blob([byteArray], { type: mimeType })
           
           formData.append('file', blob, 'image.jpg')
           formData.append('model', model)
