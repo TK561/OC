@@ -764,8 +764,8 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Size limitation to prevent Railway memory issues but allow reasonable processing
-        max_pixels = 2_000_000  # About 1600x1250 or similar, prevents memory overflow
+        # Aggressive size limitation for Railway memory constraints
+        max_pixels = 800_000  # About 894x894 or 1200x667, aggressive memory saving
         current_pixels = image.size[0] * image.size[1]
         
         if current_pixels > max_pixels:
@@ -773,10 +773,10 @@ async def predict_depth(
             scale = (max_pixels / current_pixels) ** 0.5
             new_width = int(image.size[0] * scale)
             new_height = int(image.size[1] * scale)
-            logger.info(f"Resizing from {image.size[0]}x{image.size[1]} to {new_width}x{new_height} (scale: {scale:.3f})")
+            logger.info(f"Railway memory optimization: Resizing from {image.size[0]}x{image.size[1]} to {new_width}x{new_height} (scale: {scale:.3f})")
             image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
         else:
-            logger.info(f"Image size {image.size[0]}x{image.size[1]} is within limits, no resizing needed")
+            logger.info(f"Image size {image.size[0]}x{image.size[1]} is within Railway memory limits")
         
         # Store original image size before any processing
         original_size = image.size
