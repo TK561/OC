@@ -98,7 +98,14 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
       const { points, colors } = depthResult.pointcloudData
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
-      const scale = 150 * zoom  // スケールを適切に調整して全体が収まるように
+      
+      // キャンバスのアスペクト比を考慮したスケール計算
+      const canvasAspectRatio = canvas.width / canvas.height
+      const baseScale = 150 * zoom
+      
+      // キャンバスのアスペクト比に合わせてスケール調整
+      const scaleX = baseScale
+      const scaleY = baseScale
 
       // 3D → 2D投影
       points.forEach((point: number[], index: number) => {
@@ -121,8 +128,8 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         // 透視投影 - 全体が収まるように調整
         const perspective = 5.0  // 透視効果を弱めて全体を表示
         const depth = Math.max(0.1, perspective - finalZ)  // ゼロ除算防止
-        const projectedX = centerX + (rotatedX * scale) / depth
-        const projectedY = centerY + (rotatedY * scale) / depth
+        const projectedX = centerX + (rotatedX * scaleX) / depth
+        const projectedY = centerY + (rotatedY * scaleY) / depth
         
         // 深度による点サイズ - より自然なサイズ変化
         const pointSize = Math.max(0.8, settings.pointSize * 10 / depth)  // 最小サイズを0.8に
@@ -139,7 +146,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
 
       // 軸表示
       if (settings.showAxes) {
-        drawAxes(ctx, centerX, centerY, scale)
+        drawAxes(ctx, centerX, centerY, scaleX)
       }
     }
 
@@ -147,28 +154,28 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
     setIsLoading(false)
   }, [depthResult, settings, rotation, zoom])
 
-  const drawAxes = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, scale: number) => {
+  const drawAxes = (ctx: CanvasRenderingContext2D, centerX: number, centerY: number, scaleX: number) => {
     ctx.strokeStyle = '#ff0000'
     ctx.lineWidth = 2
     
     // X軸 (赤)
     ctx.beginPath()
     ctx.moveTo(centerX, centerY)
-    ctx.lineTo(centerX + scale * 0.3, centerY)
+    ctx.lineTo(centerX + scaleX * 0.3, centerY)
     ctx.stroke()
     
     // Y軸 (緑)
     ctx.strokeStyle = '#00ff00'
     ctx.beginPath()
     ctx.moveTo(centerX, centerY)
-    ctx.lineTo(centerX, centerY - scale * 0.3)
+    ctx.lineTo(centerX, centerY - scaleX * 0.3)
     ctx.stroke()
     
     // Z軸 (青)
     ctx.strokeStyle = '#0000ff'
     ctx.beginPath()
     ctx.moveTo(centerX, centerY)
-    ctx.lineTo(centerX - scale * 0.2, centerY + scale * 0.2)
+    ctx.lineTo(centerX - scaleX * 0.2, centerY + scaleX * 0.2)
     ctx.stroke()
   }
 
@@ -319,6 +326,12 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
                 ? `標準画質（軽量化済み）`
                 : '高画質'
           }</div>
+          {depthResult.pointcloudData.original_size && (
+            <div>📏 元サイズ: {depthResult.pointcloudData.original_size.width}×{depthResult.pointcloudData.original_size.height}px</div>
+          )}
+          {depthResult.pointcloudData.original_size && (
+            <div>📏 アスペクト比: {(depthResult.pointcloudData.original_size.width / depthResult.pointcloudData.original_size.height).toFixed(2)}</div>
+          )}
         </div>
       </div>
     </div>

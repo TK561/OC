@@ -694,14 +694,25 @@ def apply_grayscale_depth_map(depth_image):
     return colored_img
 
 def generate_pointcloud(original_image, depth_image):
-    """3Dポイントクラウドデータ生成"""
+    """3Dポイントクラウドデータ生成 - アスペクト比を考慮した座標変換"""
     w, h = original_image.size
-    downsample_factor = 12  # Restore working point cloud configuration
+    downsample_factor = 12
     points = []
     colors = []
     
     orig_pixels = original_image.load()
     depth_pixels = depth_image.load()
+    
+    # アスペクト比を考慮したスケーリング計算
+    aspect_ratio = w / h
+    if aspect_ratio > 1.0:  # 横長画像
+        scale_x = 1.6
+        scale_y = 1.6 / aspect_ratio
+    else:  # 縦長画像または正方形
+        scale_x = 1.6 * aspect_ratio
+        scale_y = 1.6
+    
+    logger.info(f"Point cloud generation: image size {w}x{h}, aspect_ratio={aspect_ratio:.3f}, scale_x={scale_x:.3f}, scale_y={scale_y:.3f}")
     
     for y in range(0, h, downsample_factor):
         for x in range(0, w, downsample_factor):
@@ -709,8 +720,11 @@ def generate_pointcloud(original_image, depth_image):
             if x < w and y < h:
                 # PIL load() uses (x, y) coordinate system
                 depth_val = depth_pixels[x, y] / 255.0
-                x_norm = (x / w - 0.5) * 1.6
-                y_norm = (y / h - 0.5) * 1.6
+                
+                # アスペクト比を考慮した正規化座標計算
+                x_norm = (x / w - 0.5) * scale_x
+                # Y軸を反転して3D座標系に合わせる（上向きが正）
+                y_norm = -(y / h - 0.5) * scale_y
                 z_norm = depth_val * 2 - 1
                 
                 points.append([x_norm, y_norm, z_norm])
@@ -723,7 +737,9 @@ def generate_pointcloud(original_image, depth_image):
         "count": len(points),
         "downsample_factor": downsample_factor,
         "original_size": {"width": w, "height": h},
-        "sampled_size": {"width": w // downsample_factor, "height": h // downsample_factor}
+        "sampled_size": {"width": w // downsample_factor, "height": h // downsample_factor},
+        "aspect_ratio": aspect_ratio,
+        "scaling": {"x": scale_x, "y": scale_y}
     }
 
 @app.get("/")
