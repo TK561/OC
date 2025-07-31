@@ -82,9 +82,9 @@ export default function Home() {
         formData.append('file', blob, 'image.jpg')
         formData.append('model', selectedModel)
         
-        // 10秒タイムアウト設定
+        // 30秒タイムアウト設定（深度推定は時間がかかる場合がある）
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 10000)
+        const timeoutId = setTimeout(() => controller.abort(), 30000)
         
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/predict`, {
           method: 'POST',
@@ -124,29 +124,18 @@ export default function Home() {
             return
           }
         }
-        throw new Error(`Railway API failed: ${response.status} ${response.statusText}`)
+        
+        const errorMessage = `Backend API failed: ${response.status} ${response.statusText}`
+        console.error('Railway API failed:', errorMessage)
+        throw new Error(errorMessage)
       } catch (apiError) {
-        console.log('Railway API failed:', apiError)
-        console.log('Falling back to mock API...')
-        
-        // フォールバック: モックAPI
-        const { createMockDepthMap } = await import('../lib/mockApi')
-        const mockDepthMap = await createMockDepthMap(imageDataUrl)
-        
-        setDepthResult({
-          depthMapUrl: mockDepthMap,
-          originalUrl: uploadedImage,
-          success: true,
-          model: 'mock-gradient',
-          resolution: 'original'
-        })
-        setActiveTab('depth')
-        
-        console.log('⚠️ Using mock depth estimation (Railway API unavailable)')
+        console.error('Railway API error:', apiError)
+        throw apiError  // Re-throw to be handled by outer catch block
       }
     } catch (error) {
-      console.error('All depth estimation methods failed:', error)
-      alert('深度推定に失敗しました。画像を確認してもう一度お試しください。')
+      console.error('Depth estimation failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      alert(`深度推定に失敗しました。\n\nエラー詳細: ${errorMessage}\n\n画像形式やサイズを確認してもう一度お試しください。`)
     } finally {
       setTimeout(() => {
         setIsProcessing(false)
@@ -215,7 +204,7 @@ export default function Home() {
           formData.append('model', model)
           
           const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 15000)
+          const timeoutId = setTimeout(() => controller.abort(), 45000)  // 比較モードはさらに長く
           
           const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/predict`, {
             method: 'POST',
