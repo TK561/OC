@@ -215,40 +215,53 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         </div>
       </div>
 
-      {/* Simple Explanation */}
+      {/* Model Details */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="text-sm font-medium text-blue-900 mb-3">🔍 それぞれの特徴</h3>
         <div className="space-y-3 text-sm">
           <div className="bg-white rounded p-3 border border-blue-100">
             <div className="flex items-center mb-2">
               <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高精度</span>
-              <span className="font-medium text-gray-900">最新の高性能モデル</span>
+              <div>
+                <span className="font-medium text-gray-900">最新の高性能モデル</span>
+                <span className="text-xs text-gray-500 ml-2">(Intel/dpt-large)</span>
+              </div>
             </div>
             <p className="text-gray-700 leading-relaxed">
-              <strong>細かいディテールまで正確に認識。</strong>人の髪の毛、葉っぱの縁、細かい物体の境界なども
-              しっかりと判別します。写真の品質を重視する方、作品やプレゼンテーション用におすすめです。
+              <strong>DPT (Dense Prediction Transformer)モデルを使用。</strong>
+              このモデルはIntelが開発した最新の深度推定技術で、人の髪の毛、葉っぱの縁、細かい物体の境界なども非常に精密に判別します。
+              画像を細かいパーツに分けて解析し、各部分の関係性を理解することで、非常に正確な深度情報を提供します。
             </p>
           </div>
           
           <div className="bg-white rounded p-3 border border-blue-100">
             <div className="flex items-center mb-2">
               <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高速</span>
-              <span className="font-medium text-gray-900">結果をすぐに確認</span>
+              <div>
+                <span className="font-medium text-gray-900">結果をすぐに確認</span>
+                <span className="text-xs text-gray-500 ml-2">(Intel/dpt-hybrid-midas)</span>
+              </div>
             </div>
             <p className="text-gray-700 leading-relaxed">
-              <strong>待ち時間が短く、すぐに結果が表示。</strong>大きな画像でも数秒で処理が完了します。
-              「とりあえず結果を見てみたい」「たくさんの画像を試したい」という方に最適です。
+              <strong>MiDaS (Mixed Dataset Training)モデルを使用。</strong>
+              このモデルはさまざまな種類の画像データで学習されており、効率的な処理で高速に結果を出します。
+              大きな画像でも数秒で処理が完了し、「とりあえず結果を見てみたい」という方に最適です。品質と速度のバランスがとれた実用的なモデルです。
             </p>
           </div>
           
           <div className="bg-white rounded p-3 border border-blue-100">
             <div className="flex items-center mb-2">
               <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium mr-3">汎用</span>
-              <span className="font-medium text-gray-900">どんな写真でも安心</span>
+              <div>
+                <span className="font-medium text-gray-900">どんな写真でも安心</span>
+                <span className="text-xs text-gray-500 ml-2">(LiheYoung/depth-anything-small)</span>
+              </div>
             </div>
             <p className="text-gray-700 leading-relaxed">
-              <strong>あらゆる種類の写真に対応。</strong>人物写真、風景写真、室内・室外、日中・夜間など、
-              シーンを選ばず安定した結果を提供。「どのモデルを選べばいいかわからない」方は、まずこちらをお試しください。
+              <strong>Depth Anythingモデルを使用。</strong>
+              このモデルは1400万枚もの大量の写真で学習された「万能型」のモデルです。
+              人物写真、風景写真、室内・室外、日中・夜間など、あらゆるシーンで安定した結果を提供します。
+              「どのモデルを選べばいいかわからない」方は、まずこのモデルからお試しください。
             </p>
           </div>
         </div>
