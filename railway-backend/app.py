@@ -294,7 +294,7 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     gray_array = np.dot(img_array[...,:3], [0.299, 0.587, 0.114])
     
     # 疑似トランスフォーマー処理: マルチスケール特徴抽出
-    scales = [1.0, 0.75, 0.5]
+    scales = [1.0, 0.8]  # Reduced from 3 to 2 scales for memory efficiency
     scale_features = []
     
     for scale in scales:
@@ -330,7 +330,7 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     
     # マルチスケール融合（DPTのdense prediction head風）
     fused_features = np.zeros_like(scale_features[0])
-    weights = [0.5, 0.3, 0.2]  # 大きなスケールほど重要
+    weights = [0.6, 0.4]  # 2 scales only for memory efficiency
     
     for i, feature in enumerate(scale_features):
         fused_features += feature * weights[i]
@@ -631,7 +631,7 @@ def zoedepth_inspired(image: Image.Image):
     gray = image.convert('L')
     
     # Multi-scale processing for absolute depth
-    scales = [1.0, 0.8, 0.6]
+    scales = [1.0, 0.8]  # Reduced from 3 to 2 scales for memory efficiency
     depth_maps = []
     
     for scale in scales:
@@ -692,7 +692,7 @@ def apply_grayscale_depth_map(depth_image):
 def generate_pointcloud(original_image, depth_image):
     """3Dポイントクラウドデータ生成"""
     w, h = original_image.size
-    downsample_factor = 8  # Increased from 4 to 8 for memory efficiency
+    downsample_factor = 12  # Increased from 8 to 12 for extreme memory efficiency
     points = []
     colors = []
     
@@ -790,8 +790,8 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Ultra-aggressive size limitation for Railway memory constraints
-        max_pixels = 400_000  # About 632x632 or 800x500, ultra memory saving
+        # Extreme size limitation for Railway memory constraints
+        max_pixels = 200_000  # About 447x447 or 600x333, extreme memory saving
         current_pixels = image.size[0] * image.size[1]
         
         if current_pixels > max_pixels:
