@@ -215,6 +215,23 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         </div>
       </div>
 
+      {/* Color Map Legend */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-gray-900 mb-3">🎨 深度カラーマップ</h3>
+        <div className="flex items-center space-x-4">
+          <div className="flex-1">
+            <div className="h-4 bg-gradient-to-r from-white via-gray-500 to-black rounded"></div>
+            <div className="flex justify-between text-xs text-gray-600 mt-1">
+              <span>近い</span>
+              <span>遠い</span>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          白色が最も近く、黒色が最も遠い距離を表します。グレーの濃さで距離の段階を表現しています。
+        </p>
+      </div>
+
       {/* Model Details */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="text-sm font-medium text-blue-900 mb-3">🔍 それぞれの特徴</h3>
@@ -265,23 +282,6 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             </p>
           </div>
         </div>
-      </div>
-
-      {/* Color Map Legend */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-gray-900 mb-3">🎨 深度カラーマップ</h3>
-        <div className="flex items-center space-x-4">
-          <div className="flex-1">
-            <div className="h-4 bg-gradient-to-r from-white via-gray-500 to-black rounded"></div>
-            <div className="flex justify-between text-xs text-gray-600 mt-1">
-              <span>近い</span>
-              <span>遠い</span>
-            </div>
-          </div>
-        </div>
-        <p className="text-xs text-gray-500 mt-2">
-          白色が最も近く、黒色が最も遠い距離を表します。グレーの濃さで距離の段階を表現しています。
-        </p>
       </div>
 
     </div>
