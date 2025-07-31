@@ -8,7 +8,6 @@ interface ControlPanelProps {
 }
 
 export default function ControlPanel({ settings, onSettingsChange, depthResult }: ControlPanelProps) {
-  const [showColorMapInfo, setShowColorMapInfo] = useState(false)
 
   const handleSettingChange = (key: keyof ViewerSettings, value: any) => {
     onSettingsChange({
@@ -25,45 +24,6 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
         <h3 className="text-lg font-semibold mb-4">3D表示設定</h3>
         
         <div className="space-y-4">
-          {/* Color Map */}
-          <div>
-            <div className="flex items-center mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                カラーマップ
-              </label>
-              <button
-                onClick={() => setShowColorMapInfo(!showColorMapInfo)}
-                className="ml-2 w-5 h-5 bg-gray-200 hover:bg-gray-300 text-gray-600 text-xs font-bold rounded-full flex items-center justify-center transition-colors"
-                title="カラーマップの説明を表示"
-              >
-                ?
-              </button>
-            </div>
-            <select
-              value={settings.colorMap}
-              onChange={(e) => handleSettingChange('colorMap', e.target.value as ViewerSettings['colorMap'])}
-              className="input-field w-full"
-              title="カラーマップ選択"
-              aria-label="深度マップのカラーマップを選択"
-            >
-              <option value="viridis">Viridis</option>
-              <option value="plasma">Plasma</option>
-              <option value="hot">Hot</option>
-              <option value="cool">Cool</option>
-            </select>
-            
-            {/* カラーマップ説明 */}
-            {showColorMapInfo && (
-              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-                <div className="space-y-2">
-                  <div><strong>Viridis:</strong> 紫から青、緑、黄へと変化。科学的可視化に最適です。</div>
-                  <div><strong>Plasma:</strong> 紫から赤、黄へと変化。高コントラストで細かい変化を強調します。</div>
-                  <div><strong>Hot:</strong> 黒から赤、黄、白へと変化。熱画像風の色合いで温度を連想させます。</div>
-                  <div><strong>Cool:</strong> 青から緑、赤へと変化。涼しい色合いで落ち着いた表示です。</div>
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Point Size */}
           <div>
@@ -157,7 +117,6 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
         <h4 className="text-sm font-medium text-blue-900 mb-2">💡 使い方のヒント</h4>
         <ul className="text-xs text-blue-800 space-y-1">
           <li>• マウスで3Dビューを回転・ズーム可能</li>
-          <li>• カラーマップで深度の可視化を調整</li>
           <li>• ポイントサイズで点の大きさを調節</li>
           <li>• 背景色は自由に変更できます</li>
         </ul>
