@@ -778,9 +778,9 @@ async def predict_depth(
             image = image.convert('RGB')
             logger.info(f"After RGB conversion: {image.size}")
             
-            # CRITICAL: Save original image BEFORE any resizing for response
-            original_image = image.copy()
-            logger.info(f"Saved original image copy: {original_image.size}")
+            # Skip original image copy for now - use resized image for everything
+            # This saves memory by not keeping two copies
+            logger.info(f"Skipping original image copy to save memory")
             
         except Exception as img_error:
             logger.error(f"Image loading error: {img_error}")
@@ -839,9 +839,9 @@ async def predict_depth(
             logger.error(f"Colormap application failed: {colormap_error}")
             raise HTTPException(status_code=500, detail=f"Colormap processing failed: {str(colormap_error)}")
         
-        # Generate point cloud using original image
+        # Generate point cloud using resized image
         try:
-            pointcloud_data = generate_pointcloud(original_image, depth_gray)
+            pointcloud_data = generate_pointcloud(image, depth_gray)
             logger.info(f"Point cloud generated successfully. Points: {pointcloud_data['count']}")
         except Exception as pointcloud_error:
             logger.error(f"Point cloud generation failed: {pointcloud_error}")
@@ -862,12 +862,12 @@ async def predict_depth(
             logger.info("Generating response...")
             response_data = {
                 "success": True,
-                "originalUrl": image_to_base64(original_image),
+                "originalUrl": image_to_base64(image),
                 "depthMapUrl": image_to_base64(depth_colored),
                 "pointcloudData": pointcloud_data,
                 "model": model,
                 "model_info": MODEL_CONFIGS.get(model, {}),
-                "resolution": f"{original_image.size[0]}x{original_image.size[1]}",
+                "resolution": f"{image.size[0]}x{image.size[1]}",
                 "algorithms": ["Edge Detection", "Texture Analysis", "Multi-scale Processing"]
             }
             logger.info("Response generated successfully")
