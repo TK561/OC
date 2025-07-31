@@ -219,7 +219,13 @@ async def estimate_depth(
         )
         
         output = prediction.squeeze().cpu().numpy()
-        formatted = (output * 255 / np.max(output)).astype("uint8")
+        
+        # Normalize depth values based on model type
+        from depth_normalization import normalize_depth_output
+        normalized_depth = normalize_depth_output(output, estimator['model_name'])
+        
+        # Convert to 8-bit grayscale
+        formatted = (normalized_depth * 255).astype("uint8")
         
         # Create depth map image
         depth_image = Image.fromarray(formatted, mode='L')
