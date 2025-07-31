@@ -788,8 +788,8 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Conservative size limitation for Railway memory constraints
-        max_pixels = 80_000  # About 283x283 or 400x200, very conservative
+        # Balanced size limitation for Railway memory constraints
+        max_pixels = 250_000  # About 500x500 or 640x390, balanced quality/memory
         current_pixels = image.size[0] * image.size[1]
         
         if current_pixels > max_pixels:
