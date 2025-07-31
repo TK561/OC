@@ -2,6 +2,21 @@
 
 export async function getOrientedImageUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
+    // EXIF処理をバックエンドに任せるため、フロントエンドでは処理しない
+    const reader = new FileReader()
+    
+    reader.onload = (e) => {
+      // そのままファイルをData URLとして返す
+      resolve(e.target?.result as string)
+    }
+    
+    reader.onerror = () => reject(new Error('File reading failed'))
+    reader.readAsDataURL(file)
+  })
+
+  // 以下のコードは使用しないが、後で必要になったら復活できるようにコメントで保持
+  /*
+  return new Promise((resolve, reject) => {
     const reader = new FileReader()
     
     reader.onload = async (e) => {
@@ -86,6 +101,7 @@ export async function getOrientedImageUrl(file: File): Promise<string> {
     reader.onerror = () => reject(new Error('File reading failed'))
     reader.readAsArrayBuffer(file)
   })
+  */
 }
 
 // EXIF Orientationの値を取得
