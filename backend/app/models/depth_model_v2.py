@@ -330,9 +330,13 @@ class DepthEstimatorV2:
             # Based on actual output observation:
             # DPT and MiDaS: Both output inverted (near=bright, far=dark) - need inversion
             # Depth Anything: Correct output (near=dark, far=bright) - keep as-is
+            logger.info(f"Applying depth normalization for model_type: {model_type}")
+            logger.info(f"Before inversion - min: {depth_normalized.min()}, max: {depth_normalized.max()}")
+            
             if model_type in ["dpt", "midas"]:
                 # Invert for both DPT and MiDaS
                 depth_normalized = 1.0 - depth_normalized
+                logger.info(f"After inversion - min: {depth_normalized.min()}, max: {depth_normalized.max()}")
         else:
             depth_normalized = np.zeros_like(depth_array)
         
