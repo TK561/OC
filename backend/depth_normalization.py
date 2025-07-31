@@ -31,12 +31,9 @@ def normalize_depth_output(depth_array, model_name):
     else:
         normalized = np.zeros_like(depth_array)
     
-    # DPT-Largeは「近い＝小さい値」なのでそのまま
-    if 'dpt-large' in model_lower:
-        return normalized
-    
-    # MiDaSは「近い＝大きい値」なので反転が必要
-    elif 'midas' in model_lower or 'dpt-hybrid-midas' in model_lower:
+    # 実際の出力観察に基づく処理：
+    # DPTとMiDaSは両方とも反転が必要（近い=明るい、遠い=暗い で出力される）
+    if 'dpt' in model_lower or 'midas' in model_lower:
         return 1.0 - normalized
     
     # Depth Anythingは「遠い＝大きい値」なのでそのまま正規化

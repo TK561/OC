@@ -327,11 +327,11 @@ class DepthEstimatorV2:
                 depth_normalized = np.power(depth_normalized, gamma)
             
             # Model-specific depth interpretation
-            # DPT-Large: relative depth (smaller values = closer) - keep as-is
-            # MiDaS: inverse depth (larger values = closer) - need inversion
-            # Depth Anything: metric depth (larger values = farther) - keep as-is
-            if model_type == "midas":
-                # Invert only for MiDaS
+            # Based on actual output observation:
+            # DPT and MiDaS: Both output inverted (near=bright, far=dark) - need inversion
+            # Depth Anything: Correct output (near=dark, far=bright) - keep as-is
+            if model_type in ["dpt", "midas"]:
+                # Invert for both DPT and MiDaS
                 depth_normalized = 1.0 - depth_normalized
         else:
             depth_normalized = np.zeros_like(depth_array)
