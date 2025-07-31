@@ -12,7 +12,7 @@
   "rewrites": [
     {
       "source": "/api/backend/:path*",
-      "destination": "https://depth-estimation-railway-production.up.railway.app/:path*"
+      "destination": "https://web-production-a0df.up.railway.app/:path*"
     }
   ],
   "headers": [
@@ -21,7 +21,7 @@
       "headers": [
         {
           "key": "Cross-Origin-Embedder-Policy",
-          "value": "require-corp"
+          "value": "credentialless"
         },
         {
           "key": "Cross-Origin-Opener-Policy",
@@ -31,6 +31,6 @@
     }
   ],
   "env": {
-    "NEXT_PUBLIC_BACKEND_URL": "https://depth-estimation-railway-production.up.railway.app"
+    "NEXT_PUBLIC_BACKEND_URL": "https://web-production-a0df.up.railway.app"
   }
 }

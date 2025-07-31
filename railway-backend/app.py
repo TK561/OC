@@ -21,10 +21,18 @@ logger = logging.getLogger(__name__)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,  # Changed to False for COEP compatibility
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
+
+# Add Cross-Origin Resource Policy for COEP compatibility
+@app.middleware("http")
+async def add_corp_header(request, call_next):
+    response = await call_next(request)
+    response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
+    return response
 
 # Pillow-only implementations (Railway compatible) - 3 core models
 MODEL_CONFIGS = {
