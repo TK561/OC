@@ -53,7 +53,7 @@ class DepthEstimatorV2:
                 "type": "depth_anything_v2",
                 "input_size": 518,
                 "align_corners": False,
-                "keep_aspect_ratio": False,
+                "keep_aspect_ratio": True,  # 修正: アスペクト比を保持
                 "ensure_multiple_of": 14,
                 "resize_method": "bilinear"
             },
@@ -61,7 +61,7 @@ class DepthEstimatorV2:
                 "type": "depth_anything_v2",
                 "input_size": 518,
                 "align_corners": False,
-                "keep_aspect_ratio": False,
+                "keep_aspect_ratio": True,  # 修正: アスペクト比を保持
                 "ensure_multiple_of": 14,
                 "resize_method": "bilinear"
             },
@@ -69,7 +69,7 @@ class DepthEstimatorV2:
                 "type": "depth_anything_v2",
                 "input_size": 518,
                 "align_corners": False,
-                "keep_aspect_ratio": False,
+                "keep_aspect_ratio": True,  # 修正: アスペクト比を保持
                 "ensure_multiple_of": 14,
                 "resize_method": "bilinear"
             }

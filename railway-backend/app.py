@@ -61,13 +61,13 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     logger.info(f"MiDaS function - Original size param: {original_size}")
     original_image = image.copy()
     
-    # MiDaS風の前処理: 384x384にリサイズ（アスペクト比維持）
-    if w > h:
-        new_w, new_h = 384, int(384 * h / w)
-        logger.info(f"MiDaS - Landscape image: {w}x{h} -> {new_w}x{new_h}")
-    else:
-        new_w, new_h = int(384 * w / h), 384
-        logger.info(f"MiDaS - Portrait image: {w}x{h} -> {new_w}x{new_h}")
+    # MiDaS風の前処理: アスペクト比を完全に維持してリサイズ
+    # 長辺を384にしてアスペクト比を保持
+    max_dim = max(w, h)
+    scale = 384 / max_dim
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+    logger.info(f"MiDaS - Original: {w}x{h} -> Scaled: {new_w}x{new_h} (scale: {scale:.3f})")
     
     resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
     logger.info(f"MiDaS - After resize: {resized.size}")
@@ -254,13 +254,13 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     logger.info(f"DPT function - Input size: {image.size} (w={w}, h={h})")
     logger.info(f"DPT function - Original size param: {original_size}")
     
-    # DPT風前処理（384x384リサイズ）
-    if w > h:
-        new_w, new_h = 384, int(384 * h / w)
-        logger.info(f"DPT - Landscape image: {w}x{h} -> {new_w}x{new_h}")
-    else:
-        new_w, new_h = int(384 * w / h), 384
-        logger.info(f"DPT - Portrait image: {w}x{h} -> {new_w}x{new_h}")
+    # DPT風前処理: アスペクト比を完全に維持してリサイズ
+    # 長辺を384にしてアスペクト比を保持
+    max_dim = max(w, h)
+    scale = 384 / max_dim
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+    logger.info(f"DPT - Original: {w}x{h} -> Scaled: {new_w}x{new_h} (scale: {scale:.3f})")
     
     resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
     logger.info(f"DPT - After resize: {resized.size}")
@@ -354,13 +354,13 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     logger.info(f"DepthAnything function - Input size: {image.size} (w={w}, h={h})")
     logger.info(f"DepthAnything function - Original size param: {original_size}")
     
-    # DepthAnything風前処理（518x518リサイズ）
-    if w > h:
-        new_w, new_h = 518, int(518 * h / w)
-        logger.info(f"DepthAnything - Landscape image: {w}x{h} -> {new_w}x{new_h}")
-    else:
-        new_w, new_h = int(518 * w / h), 518
-        logger.info(f"DepthAnything - Portrait image: {w}x{h} -> {new_w}x{new_h}")
+    # DepthAnything風前処理: アスペクト比を完全に維持してリサイズ
+    # 長辺を518にしてアスペクト比を保持
+    max_dim = max(w, h)
+    scale = 518 / max_dim
+    new_w = int(w * scale)
+    new_h = int(h * scale)
+    logger.info(f"DepthAnything - Original: {w}x{h} -> Scaled: {new_w}x{new_h} (scale: {scale:.3f})")
     
     resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
     logger.info(f"DepthAnything - After resize: {resized.size}")
