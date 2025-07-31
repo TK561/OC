@@ -56,7 +56,7 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
             {showColorMapInfo && (
               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
                 <div className="space-y-2">
-                  <div><strong>Viridis:</strong> 紫から青、緑、黄へと変化。科学的可視化に最適で、色覚異常者にも優しいです。</div>
+                  <div><strong>Viridis:</strong> 紫から青、緑、黄へと変化。科学的可視化に最適です。</div>
                   <div><strong>Plasma:</strong> 紫から赤、黄へと変化。高コントラストで細かい変化を強調します。</div>
                   <div><strong>Hot:</strong> 黒から赤、黄、白へと変化。熱画像風の色合いで温度を連想させます。</div>
                   <div><strong>Cool:</strong> 青から緑、赤へと変化。涼しい色合いで落ち着いた表示です。</div>
@@ -101,6 +101,14 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
                   aria-label={`背景色を${color}に設定`}
                 />
               ))}
+              <input
+                type="color"
+                value={settings.backgroundColor}
+                onChange={(e) => handleSettingChange('backgroundColor', e.target.value)}
+                className="w-8 h-8 rounded border-2 border-gray-300 cursor-pointer"
+                title="カスタム背景色"
+                aria-label="カスタム背景色を選択"
+              />
             </div>
           </div>
 

@@ -179,10 +179,9 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         // 深度による点サイズ - より自然なサイズ変化
         const pointSize = Math.max(0.8, settings.pointSize * 10 / depth)  // 最小サイズを0.8に
         
-        // カラーマップを適用した色設定
-        const depthValue = (finalZ + 2) / 4  // 深度値を0-1に正規化
-        const mappedColor = applyColorMap(depthValue, settings.colorMap)
-        ctx.fillStyle = `rgb(${Math.floor(mappedColor[0] * 255)}, ${Math.floor(mappedColor[1] * 255)}, ${Math.floor(mappedColor[2] * 255)})`
+        // 色設定
+        const color = colors[index]
+        ctx.fillStyle = `rgb(${Math.floor(color[0] * 255)}, ${Math.floor(color[1] * 255)}, ${Math.floor(color[2] * 255)})`
         
         // 点描画
         ctx.beginPath()
