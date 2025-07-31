@@ -728,8 +728,8 @@ def generate_pointcloud(original_image, depth_image):
                 
                 # 元画像の縦横比を保持した座標計算
                 x_norm = (x / w - 0.5) * scale_x
-                # Y軸を反転して3D座標系に合わせる（上向きが正）
-                y_norm = -(y / h - 0.5) * scale_y
+                # Y軸の反転を取り除いて180度回転を修正
+                y_norm = (y / h - 0.5) * scale_y
                 z_norm = depth_val * 2 - 1
                 
                 points.append([x_norm, y_norm, z_norm])
