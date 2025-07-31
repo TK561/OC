@@ -705,13 +705,17 @@ def generate_pointcloud(original_image, depth_image):
     orig_pixels = original_image.load()
     depth_pixels = depth_image.load()
     
-    # 修正: 統一されたスケーリング計算
+    # 元画像の縦横比をそのまま保持するスケーリング計算
     aspect_ratio = w / h
     base_scale = 1.6
     
-    # 常に正しいアスペクト比を維持
-    scale_x = base_scale
-    scale_y = base_scale
+    # アスペクト比を正確に反映
+    if aspect_ratio > 1.0:  # 横長画像
+        scale_x = base_scale
+        scale_y = base_scale / aspect_ratio
+    else:  # 縦長画像または正方形
+        scale_x = base_scale * aspect_ratio
+        scale_y = base_scale
     
     logger.info(f"Point cloud generation: image size {w}x{h}, aspect_ratio={aspect_ratio:.3f}, scale_x={scale_x:.3f}, scale_y={scale_y:.3f}")
     
@@ -722,8 +726,8 @@ def generate_pointcloud(original_image, depth_image):
                 # PIL load() uses (x, y) coordinate system
                 depth_val = depth_pixels[x, y] / 255.0
                 
-                # 修正: 正しいアスペクト比を維持した座標計算
-                x_norm = (x / w - 0.5) * scale_x * aspect_ratio
+                # 元画像の縦横比を保持した座標計算
+                x_norm = (x / w - 0.5) * scale_x
                 # Y軸を反転して3D座標系に合わせる（上向きが正）
                 y_norm = -(y / h - 0.5) * scale_y
                 z_norm = depth_val * 2 - 1
