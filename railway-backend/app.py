@@ -61,15 +61,13 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     logger.info(f"MiDaS function - Original size param: {original_size}")
     original_image = image.copy()
     
-    # MiDaS風の前処理: アスペクト比を完全に維持してリサイズ
-    # 長辺を384にしてアスペクト比を保持
-    max_dim = max(w, h)
-    scale = 384 / max_dim
-    new_w = int(w * scale)
-    new_h = int(h * scale)
-    logger.info(f"MiDaS - Original: {w}x{h} -> Scaled: {new_w}x{new_h} (scale: {scale:.3f})")
+    # MiDaS風の前処理: リサイズを無効化して元のサイズを保持
+    # ユーザーリクエスト: リサイズしない
+    new_w = w
+    new_h = h
+    logger.info(f"MiDaS - Original: {w}x{h} -> No resize, keeping original size: {new_w}x{new_h}")
     
-    resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    resized = image
     logger.info(f"MiDaS - After resize: {resized.size}")
     
     # RGB値を[-1, 1]に正規化（MiDaS/DPTスタイル）
@@ -266,15 +264,13 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     logger.info(f"DPT function - Input size: {image.size} (w={w}, h={h})")
     logger.info(f"DPT function - Original size param: {original_size}")
     
-    # DPT風前処理: アスペクト比を完全に維持してリサイズ
-    # 長辺を384にしてアスペクト比を保持
-    max_dim = max(w, h)
-    scale = 384 / max_dim
-    new_w = int(w * scale)
-    new_h = int(h * scale)
-    logger.info(f"DPT - Original: {w}x{h} -> Scaled: {new_w}x{new_h} (scale: {scale:.3f})")
+    # DPT風前処理: リサイズを無効化して元のサイズを保持
+    # ユーザーリクエスト: リサイズしない
+    new_w = w
+    new_h = h
+    logger.info(f"DPT - Original: {w}x{h} -> No resize, keeping original size: {new_w}x{new_h}")
     
-    resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    resized = image
     logger.info(f"DPT - After resize: {resized.size}")
     
     # RGB値を[0,1]に正規化
@@ -378,15 +374,13 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     logger.info(f"DepthAnything function - Input size: {image.size} (w={w}, h={h})")
     logger.info(f"DepthAnything function - Original size param: {original_size}")
     
-    # DepthAnything風前処理: アスペクト比を完全に維持してリサイズ
-    # 長辺を518にしてアスペクト比を保持
-    max_dim = max(w, h)
-    scale = 518 / max_dim
-    new_w = int(w * scale)
-    new_h = int(h * scale)
-    logger.info(f"DepthAnything - Original: {w}x{h} -> Scaled: {new_w}x{new_h} (scale: {scale:.3f})")
+    # DepthAnything風前処理: リサイズを無効化して元のサイズを保持
+    # ユーザーリクエスト: リサイズしない
+    new_w = w
+    new_h = h
+    logger.info(f"DepthAnything - Original: {w}x{h} -> No resize, keeping original size: {new_w}x{new_h}")
     
-    resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    resized = image
     logger.info(f"DepthAnything - After resize: {resized.size}")
     
     # RGB値を[0,1]に正規化（ImageNet統計使用）
@@ -681,6 +675,7 @@ def generate_pointcloud(original_image, depth_image):
     
     for y in range(0, h, downsample_factor):
         for x in range(0, w, downsample_factor):
+            # CRITICAL FIX: PIL load() uses (x, y) coordinate system
             depth_val = depth_pixels[x, y] / 255.0
             x_norm = (x / w - 0.5) * 1.6
             y_norm = (y / h - 0.5) * 1.6
@@ -764,21 +759,11 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Size limitation - revert to model-based sizing for stability
-        config = MODEL_CONFIGS[model]
-        max_size = 1024  # Compromise: larger than model input_size but not too large
+        # Size limitation DISABLED - user requested no resizing
+        logger.info(f"Size limitation disabled by user request")
+        logger.info(f"Processing original size: {image.size}")
         
-        logger.info(f"Before size limitation: {image.size}")
-        if max(image.size) > max_size:
-            ratio = max_size / max(image.size)
-            new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
-            logger.info(f"Resizing from {image.size} to {new_size} (ratio: {ratio:.3f})")
-            image = image.resize(new_size, Image.Resampling.LANCZOS)
-            logger.info(f"After size limitation: {image.size}")
-        else:
-            logger.info(f"No resizing needed, image size {image.size} <= {max_size}")
-        
-        logger.info(f"Final processing size: {image.size}")
+        # No resizing - keep original dimensions
         
         # Store original image size before any processing
         original_size = image.size
