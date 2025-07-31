@@ -54,7 +54,7 @@ MODEL_CONFIGS = {
 # Model cache
 model_cache = {}
 
-def midas_inspired_depth(image: Image.Image):
+def midas_inspired_depth(image: Image.Image, original_size=None):
     """MiDaS風深度推定 - OpenCVスタイルのマルチスケール処理"""
     w, h = image.size
     original_image = image.copy()
@@ -140,7 +140,8 @@ def midas_inspired_depth(image: Image.Image):
     depth_pil = Image.fromarray(depth_map, mode='L')
     
     # 元のサイズに戻す（バイキュービック補間）
-    depth_final = depth_pil.resize((w, h), Image.Resampling.BICUBIC)
+    target_size = original_size if original_size else (w, h)
+    depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     
     # 後処理: 軽いぼかしとコントラスト調整
     depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.0))
@@ -240,7 +241,7 @@ def compute_texture_variance(gray_img, w, h):
     
     return variance_img
 
-def dpt_inspired_depth(image: Image.Image):
+def dpt_inspired_depth(image: Image.Image, original_size=None):
     """DPT風深度推定 - GitHub調査に基づく逆深度処理"""
     w, h = image.size
     
@@ -324,7 +325,8 @@ def dpt_inspired_depth(image: Image.Image):
     depth_pil = Image.fromarray(depth_map, mode='L')
     
     # 元のサイズに戻す（バイキュービック補間）
-    depth_final = depth_pil.resize((w, h), Image.Resampling.BICUBIC)
+    target_size = original_size if original_size else (w, h)
+    depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     
     # 後処理
     depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.0))
@@ -332,7 +334,7 @@ def dpt_inspired_depth(image: Image.Image):
     
     return depth_final
 
-def depth_anything_inspired(image: Image.Image):
+def depth_anything_inspired(image: Image.Image, original_size=None):
     """DepthAnything風深度推定 - GitHub調査に基づく通常深度処理"""
     w, h = image.size
     
@@ -400,7 +402,8 @@ def depth_anything_inspired(image: Image.Image):
     depth_pil = Image.fromarray(depth_map, mode='L')
     
     # 元のサイズに戻す（バイキュービック補間）
-    depth_final = depth_pil.resize((w, h), Image.Resampling.BICUBIC)
+    target_size = original_size if original_size else (w, h)
+    depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     
     # 後処理
     depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.5))
@@ -714,18 +717,21 @@ async def predict_depth(
         
         logger.info(f"Image size: {image.size}")
         
+        # Store original image size before any processing
+        original_size = image.size
+        
         # Depth estimation based on model type
         model_type = config["type"]
         
         if model_type == "pillow_midas":
-            depth_gray = midas_inspired_depth(image)
+            depth_gray = midas_inspired_depth(image, original_size)
         elif model_type == "pillow_dpt_large":
-            depth_gray = dpt_inspired_depth(image)
+            depth_gray = dpt_inspired_depth(image, original_size)
         elif model_type == "pillow_depth_anything_v1":
-            depth_gray = depth_anything_inspired(image)
+            depth_gray = depth_anything_inspired(image, original_size)
         else:
             # Default fallback to DPT-Large
-            depth_gray = dpt_inspired_depth(image)
+            depth_gray = dpt_inspired_depth(image, original_size)
         
         # Apply grayscale colormap
         depth_colored = apply_grayscale_depth_map(depth_gray)
