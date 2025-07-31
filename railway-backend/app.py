@@ -759,19 +759,19 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Reasonable size limitation for Railway memory constraints
-        max_dimension = 2048  # Compromise: large enough for quality, small enough for memory
-        original_width, original_height = image.size
+        # Size limitation to prevent Railway memory issues but allow reasonable processing
+        max_pixels = 2_000_000  # About 1600x1250 or similar, prevents memory overflow
+        current_pixels = image.size[0] * image.size[1]
         
-        if original_width > max_dimension or original_height > max_dimension:
-            # Calculate scale to fit within max_dimension while preserving aspect ratio
-            scale = min(max_dimension / original_width, max_dimension / original_height)
-            new_width = int(original_width * scale)
-            new_height = int(original_height * scale)
-            logger.info(f"Resizing from {original_width}x{original_height} to {new_width}x{new_height} (scale: {scale:.3f})")
+        if current_pixels > max_pixels:
+            # Calculate scale to fit within pixel budget while preserving aspect ratio
+            scale = (max_pixels / current_pixels) ** 0.5
+            new_width = int(image.size[0] * scale)
+            new_height = int(image.size[1] * scale)
+            logger.info(f"Resizing from {image.size[0]}x{image.size[1]} to {new_width}x{new_height} (scale: {scale:.3f})")
             image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
         else:
-            logger.info(f"Image size {original_width}x{original_height} is within limits, no resizing needed")
+            logger.info(f"Image size {image.size[0]}x{image.size[1]} is within limits, no resizing needed")
         
         # Store original image size before any processing
         original_size = image.size
