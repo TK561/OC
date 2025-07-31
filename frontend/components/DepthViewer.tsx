@@ -215,9 +215,48 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         </div>
       </div>
 
+      {/* Technical Explanation */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-blue-900 mb-3">🔬 深度推定技術の理論</h3>
+        <div className="space-y-3 text-sm">
+          <div className="bg-white rounded p-3 border border-blue-100">
+            <div className="flex items-center mb-2">
+              <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高精度</span>
+              <span className="font-medium text-gray-900">DPT (Dense Prediction Transformer)</span>
+            </div>
+            <p className="text-gray-700 leading-relaxed">
+              <strong>Vision Transformerアーキテクチャを使用。</strong>画像をパッチに分割し、
+              セルフアテンションメカニズムでグローバルな文脈を理解。高解像度の特徴抽出と精密な深度推定が可能です。
+            </p>
+          </div>
+          
+          <div className="bg-white rounded p-3 border border-blue-100">
+            <div className="flex items-center mb-2">
+              <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高速</span>
+              <span className="font-medium text-gray-900">MiDaS (Mixed Dataset Training)</span>
+            </div>
+            <p className="text-gray-700 leading-relaxed">
+              <strong>複数データセットでの混合学習。</strong>異なるスケールの深度データを統一し、
+              効率的なCNNベースのエンコーダーで高速処理。相対的な深度関係を学習し、リアルタイム処理を実現。
+            </p>
+          </div>
+          
+          <div className="bg-white rounded p-3 border border-blue-100">
+            <div className="flex items-center mb-2">
+              <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium mr-3">汎用</span>
+              <span className="font-medium text-gray-900">Depth Anything (Foundation Model)</span>
+            </div>
+            <p className="text-gray-700 leading-relaxed">
+              <strong>基盤モデルアプローチ。</strong>1400万枚の大規模データセットで事前学習。
+              ラベル付きデータと未ラベルデータの組み合わせで、多様なシーンに対する汎化性能を獲得。
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Color Map Legend */}
       <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-gray-900 mb-3">深度カラーマップ</h3>
+        <h3 className="text-sm font-medium text-gray-900 mb-3">🎨 深度カラーマップ</h3>
         <div className="flex items-center space-x-4">
           <div className="flex-1">
             <div className="h-4 bg-gradient-to-r from-white via-gray-500 to-black rounded"></div>
@@ -228,8 +267,31 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
           </div>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          白色が最も近く、黒色が最も遠い距離を表します
+          白色が最も近く、黒色が最も遠い距離を表します。グレーの濃さで距離の段階を表現しています。
         </p>
+      </div>
+
+      {/* Technical Details */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-green-900 mb-3">⚙️ 技術的特徴</h3>
+        <div className="space-y-2 text-sm text-green-800">
+          <div className="flex items-start">
+            <span className="text-green-600 mr-2">•</span>
+            <span><strong>単眼深度推定</strong>：1枚の画像からシーンの3D構造を推定</span>
+          </div>
+          <div className="flex items-start">
+            <span className="text-green-600 mr-2">•</span>
+            <span><strong>相対深度</strong>：絶対距離ではなく、相対的な近さを表現</span>
+          </div>
+          <div className="flex items-start">
+            <span className="text-green-600 mr-2">•</span>
+            <span><strong>ニューラルネットワーク</strong>：深層学習で訓練されたモデルを使用</span>
+          </div>
+          <div className="flex items-start">
+            <span className="text-green-600 mr-2">•</span>
+            <span><strong>ピクセル単位</strong>：各ピクセルに深度値を割り当ててマップを生成</span>
+          </div>
+        </div>
       </div>
     </div>
   )
