@@ -807,29 +807,8 @@ async def predict_depth(
             # This ensures proper orientation regardless of frontend processing
             logger.info(f"Image received: {image.size}, mode: {image.mode}, format: {image.format}")
             
-            # EXIF情報をデバッグで確認
-            try:
-                exif_dict = image._getexif()
-                if exif_dict:
-                    orientation = exif_dict.get(274, 1)  # 274 = Orientation tag
-                    logger.info(f"EXIF Orientation value: {orientation}")
-                else:
-                    logger.info("No EXIF data found")
-            except Exception as e:
-                logger.info(f"EXIF read error: {e}")
-            
-            # フロントエンドで処理済みの場合、EXIF処理をスキップ
-            # ただし、ファイルアップロードではEXIF処理が必要な場合あり
-            try:
-                original_size = image.size
-                image = ImageOps.exif_transpose(image)
-                if image.size != original_size:
-                    logger.info(f"Image rotated by EXIF: {original_size} -> {image.size}")
-                else:
-                    logger.info(f"No EXIF rotation applied: {image.size}")
-            except Exception as exif_error:
-                logger.warning(f"EXIF transpose failed: {exif_error}")
-                logger.info(f"Using original image size: {image.size}")
+            # フロントエンドで既にEXIF処理済みのため、バックエンドでは処理しない
+            logger.info(f"Image received from frontend (EXIF already processed): {image.size}")
             
             image = image.convert('RGB')
             logger.info(f"After RGB conversion: {image.size}")

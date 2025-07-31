@@ -60,7 +60,7 @@ export async function getOrientedImageUrl(file: File): Promise<string> {
             // 画像を描画
             ctx.drawImage(img, 0, 0)
             
-            // Data URLとして出力
+            // Data URLとして出力（EXIF情報は除去される）
             canvas.toBlob((blob) => {
               if (blob) {
                 const url = URL.createObjectURL(blob)
@@ -68,7 +68,7 @@ export async function getOrientedImageUrl(file: File): Promise<string> {
               } else {
                 reject(new Error('Canvas to blob conversion failed'))
               }
-            }, file.type, 0.95)
+            }, 'image/jpeg', 0.95)  // JPEGで出力してEXIF情報をクリア
           }
         }
         
