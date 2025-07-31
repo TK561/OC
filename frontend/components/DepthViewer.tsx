@@ -300,6 +300,16 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <strong>DPT (Dense Prediction Transformer)モデルを使用。</strong>
               このモデルはIntelが開発した最新の深度推定技術で、今までの技術では難しかった細かいディテールを正確に捉えます。
             </p>
+            <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
+              <p className="font-medium text-gray-800 mb-2">🔬 使用技術</p>
+              <p className="text-gray-600 mb-2">
+                <strong>Vision Transformer (ViT)</strong> - 画像を小さなパッチに分割し、各パッチ間の関係性をAIが学習。人間の目が細部を見るように、画像全体を詳細に分析します。
+              </p>
+              <p className="font-medium text-gray-800 mb-2">🎯 検出方法</p>
+              <p className="text-gray-600">
+                <strong>境界線重視検出</strong> - 物体の輪郭や境界を重点的に分析し、髪の毛一本一本、建物の角など、細かな境界線まで正確に深度を推定します。
+              </p>
+            </div>
             <div className="mt-3 space-y-2 text-sm text-gray-600">
               <div className="flex items-start">
                 <span className="text-blue-500 mr-2">✓</span>
@@ -331,6 +341,16 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <strong>MiDaS (Mixed Dataset Training)モデルを使用。</strong>
               このモデルは複数の異なるデータセットで同時に学習された独特の技術で、速度と品質のバランスを重視した実用モデルです。
             </p>
+            <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
+              <p className="font-medium text-gray-800 mb-2">🔬 使用技術</p>
+              <p className="text-gray-600 mb-2">
+                <strong>CNN + Transformer ハイブリッド</strong> - 従来のCNN（畳み込みニューラルネットワーク）とTransformerを組み合わせ、局所的な特徴と全体的な文脈を同時に処理します。
+              </p>
+              <p className="font-medium text-gray-800 mb-2">🎯 検出方法</p>
+              <p className="text-gray-600">
+                <strong>多段階融合検出</strong> - 複数のスケールで画像を解析し、近景から遠景まで滑らかで自然な深度変化を生成。異なるデータセットの特徴を統合して処理します。
+              </p>
+            </div>
             <div className="mt-3 space-y-2 text-sm text-gray-600">
               <div className="flex items-start">
                 <span className="text-yellow-500 mr-2">⚡</span>
@@ -362,6 +382,16 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <strong>Depth Anythingモデルを使用。</strong>
               このモデルは1400万枚もの大量の写真で学習された「基盤モデル」で、あらゆるシチュエーションに対応できる汎用性が最大の特徴です。
             </p>
+            <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
+              <p className="font-medium text-gray-800 mb-2">🔬 使用技術</p>
+              <p className="text-gray-600 mb-2">
+                <strong>大規模データセット学習 Transformer</strong> - 1400万枚の多様な画像で学習したAI。あらゆる種類の画像パターンを記憶し、未知の画像でも適切に深度を推定できます。
+              </p>
+              <p className="font-medium text-gray-800 mb-2">🎯 検出方法</p>
+              <p className="text-gray-600">
+                <strong>パターンマッチング検出</strong> - 学習した大量のパターンから最適なものを選択し、画像の文脈に応じて柔軟に深度を推定。安定性と汎用性を重視した検出を行います。
+              </p>
+            </div>
             <div className="mt-3 space-y-2 text-sm text-gray-600">
               <div className="flex items-start">
                 <span className="text-purple-500 mr-2">🌍</span>
