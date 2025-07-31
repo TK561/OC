@@ -999,7 +999,7 @@ async def export_3d(
         
         # Generate depth map based on model
         if config["type"] == "pillow_dpt_large":
-            depth_pil = dpt_large(image, original_size)
+            depth_pil = dpt_inspired_depth(image, original_size)
         elif config["type"] == "pillow_midas":
             depth_pil = midas_v3_1_dpt_hybrid(image, original_size)
         elif config["type"] == "pillow_depth_anything":
