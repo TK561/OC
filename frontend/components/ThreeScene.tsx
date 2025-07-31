@@ -13,7 +13,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
   const [rotation, setRotation] = useState({ x: 0, y: 0 })  // 初期位置を0度、0度（画面に対して平行）に設定
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 })
-  const [zoom, setZoom] = useState(1.8)  // 初期ズームを大きく設定
+  const [zoom, setZoom] = useState(1.4)  // 初期ズームを調整して全体が収まるように
 
 
   // グローバルマウスイベントの処理
@@ -82,9 +82,9 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
 
     setIsLoading(true)
 
-    // キャンバスサイズ設定
-    canvas.width = 600
-    canvas.height = 400
+    // キャンバサイズ設定 - より大きくして上下の削れを防ぐ
+    canvas.width = 800
+    canvas.height = 600
 
     const renderPointCloud = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -98,7 +98,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
       const { points, colors } = depthResult.pointcloudData
       const centerX = canvas.width / 2
       const centerY = canvas.height / 2
-      const scale = 200 * zoom  // ベーススケールをさらに大きく（180→200）
+      const scale = 150 * zoom  // スケールを適切に調整して全体が収まるように
 
       // 3D → 2D投影
       points.forEach((point: number[], index: number) => {
@@ -118,8 +118,8 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         const rotatedY = y * cosX - rotatedZ * sinX
         const finalZ = y * sinX + rotatedZ * cosX
         
-        // 透視投影 - 初期表示を見やすく調整
-        const perspective = 4.0  // 透視効果をやや強化
+        // 透視投影 - 全体が収まるように調整
+        const perspective = 5.0  // 透視効果を弱めて全体を表示
         const depth = Math.max(0.1, perspective - finalZ)  // ゼロ除算防止
         const projectedX = centerX + (rotatedX * scale) / depth
         const projectedY = centerY + (rotatedY * scale) / depth
@@ -224,7 +224,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
 
   const resetToInitialView = () => {
     setRotation({ x: 0, y: 0 })  // 初期角度に戻す（0度、0度）
-    setZoom(1.8)  // 初期ズームに戻す
+    setZoom(1.4)  // 初期ズームに戻す
   }
 
   if (!depthResult) {
