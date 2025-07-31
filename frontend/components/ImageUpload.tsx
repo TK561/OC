@@ -179,7 +179,8 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
             <button
               key={index}
               onClick={() => handleSampleSelect(sample.url)}
-              className="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-depth-500 transition-all"
+              className="group relative bg-gray-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-depth-500 transition-all"
+              style={{ aspectRatio: 'auto' }}
             >
               <img
                 src={sample.url}

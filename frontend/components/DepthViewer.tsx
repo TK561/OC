@@ -120,7 +120,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             {/* Original Image */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-gray-700">元画像</h3>
-              <div className="aspect-square bg-white rounded border overflow-hidden">
+              <div className="bg-white rounded border overflow-hidden" style={{ aspectRatio: 'auto' }}>
                 {depthResult.originalUrl ? (
                   <img
                     key={`original-${depthResult.originalUrl}`}
@@ -146,7 +146,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             {/* Depth Map */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-gray-700">深度マップ</h3>
-              <div className="aspect-square bg-white rounded border overflow-hidden">
+              <div className="bg-white rounded border overflow-hidden" style={{ aspectRatio: 'auto' }}>
                 {depthResult.depthMapUrl ? (
                   <img
                     key={`depth-${depthResult.depthMapUrl}`}
@@ -170,7 +170,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             </div>
           </div>
         ) : (
-          <div className="aspect-video bg-white rounded border overflow-hidden">
+          <div className="bg-white rounded border overflow-hidden" style={{ aspectRatio: 'auto' }}>
             {depthResult.depthMapUrl ? (
               <img
                 key={`single-depth-${depthResult.depthMapUrl}`}
