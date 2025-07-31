@@ -293,8 +293,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             <div className="flex items-center mb-2">
               <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高精度</span>
               <div>
-                <span className="font-medium text-gray-900">最新の高性能モデル</span>
-                <span className="text-xs text-gray-500 ml-2">(Intel/dpt-large)</span>
+                <span className="text-xs text-gray-500">(Intel/dpt-large)</span>
               </div>
             </div>
             <p className="text-gray-700 leading-relaxed">
@@ -325,8 +324,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             <div className="flex items-center mb-2">
               <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高速</span>
               <div>
-                <span className="font-medium text-gray-900">結果をすぐに確認</span>
-                <span className="text-xs text-gray-500 ml-2">(Intel/dpt-hybrid-midas)</span>
+                <span className="text-xs text-gray-500">(Intel/dpt-hybrid-midas)</span>
               </div>
             </div>
             <p className="text-gray-700 leading-relaxed">
@@ -357,8 +355,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             <div className="flex items-center mb-2">
               <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium mr-3">汎用</span>
               <div>
-                <span className="font-medium text-gray-900">どんな写真でも安心</span>
-                <span className="text-xs text-gray-500 ml-2">(LiheYoung/depth-anything-small)</span>
+                <span className="text-xs text-gray-500">(LiheYoung/depth-anything-small)</span>
               </div>
             </div>
             <p className="text-gray-700 leading-relaxed">
