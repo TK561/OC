@@ -759,11 +759,19 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Size limitation DISABLED - user requested no resizing
-        logger.info(f"Size limitation disabled by user request")
-        logger.info(f"Processing original size: {image.size}")
+        # Reasonable size limitation for Railway memory constraints
+        max_dimension = 2048  # Compromise: large enough for quality, small enough for memory
+        original_width, original_height = image.size
         
-        # No resizing - keep original dimensions
+        if original_width > max_dimension or original_height > max_dimension:
+            # Calculate scale to fit within max_dimension while preserving aspect ratio
+            scale = min(max_dimension / original_width, max_dimension / original_height)
+            new_width = int(original_width * scale)
+            new_height = int(original_height * scale)
+            logger.info(f"Resizing from {original_width}x{original_height} to {new_width}x{new_height} (scale: {scale:.3f})")
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        else:
+            logger.info(f"Image size {original_width}x{original_height} is within limits, no resizing needed")
         
         # Store original image size before any processing
         original_size = image.size
