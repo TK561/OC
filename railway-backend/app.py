@@ -314,8 +314,8 @@ def dpt_inspired_depth(image: Image.Image):
         normalized = pseudo_inverse_depth
     
     # DPTは逆深度を出力するため、大きな値=近い
-    # 白=近い、黒=遠いにするため、値を反転する
-    inverted_depth = 1.0 - normalized  # 反転処理（DPTは必要）
+    # 白=近い、黒=遠いにするため、値をそのまま使用（MiDaSと同じ処理）
+    inverted_depth = normalized  # DPTも反転不要
     
     # [0, 255]にスケール
     depth_map = (inverted_depth * 255).astype(np.uint8)
@@ -390,9 +390,8 @@ def depth_anything_inspired(image: Image.Image):
         normalized_depth = depth_features
     
     # DepthAnythingは通常深度を出力（小さな値=近い）
-    # 白=近い、黒=遠いにするため、値を反転する
-    # しかし実際の出力観察では、Depth Anythingは反転不要
-    inverted_depth = normalized_depth  # Depth Anythingは反転不要
+    # 白=近い、黒=遠いにするため、MiDaSと同じように反転処理を適用
+    inverted_depth = 1.0 - normalized_depth  # Depth Anythingも反転処理が必要
     
     # [0, 255]にスケール
     depth_map = (inverted_depth * 255).astype(np.uint8)
