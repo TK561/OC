@@ -246,9 +246,26 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             </div>
             <p className="text-gray-700 leading-relaxed">
               <strong>DPT (Dense Prediction Transformer)モデルを使用。</strong>
-              このモデルはIntelが開発した最新の深度推定技術で、人の髪の毛、葉っぱの縁、細かい物体の境界なども非常に精密に判別します。
-              画像を細かいパーツに分けて解析し、各部分の関係性を理解することで、非常に正確な深度情報を提供します。
+              このモデルはIntelが開発した最新の深度推定技術で、今までの技術では難しかった細かいディテールを正確に捉えます。
             </p>
+            <div className="mt-3 space-y-2 text-sm text-gray-600">
+              <div className="flex items-start">
+                <span className="text-blue-500 mr-2">✓</span>
+                <span><strong>精密な境界検出:</strong> 人の髪の毛、メガネのフレーム、葉っぱの縁など、微細な部分も正確に認識</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-blue-500 mr-2">✓</span>
+                <span><strong>高解像度処理:</strong> 大きな画像でも細かい部分までしっかりと解析し、プロ品質の結果を出力</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-blue-500 mr-2">✓</span>
+                <span><strong>複雑なシーンに強い:</strong> 入り組んだ物体、透明な素材、影のあるシーンでも正確に処理</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-orange-500 mr-2">⚠</span>
+                <span><strong>処理時間:</strong> 精密な解析のため、他のモデルよりも数十秒多くかかる場合があります</span>
+              </div>
+            </div>
           </div>
           
           <div className="bg-white rounded p-3 border border-blue-100">
@@ -261,9 +278,26 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             </div>
             <p className="text-gray-700 leading-relaxed">
               <strong>MiDaS (Mixed Dataset Training)モデルを使用。</strong>
-              このモデルはさまざまな種類の画像データで学習されており、効率的な処理で高速に結果を出します。
-              大きな画像でも数秒で処理が完了し、「とりあえず結果を見てみたい」という方に最適です。品質と速度のバランスがとれた実用的なモデルです。
+              このモデルは複数の異なるデータセットで同時に学習された独特の技術で、速度と品質のバランスを重視した実用モデルです。
             </p>
+            <div className="mt-3 space-y-2 text-sm text-gray-600">
+              <div className="flex items-start">
+                <span className="text-yellow-500 mr-2">⚡</span>
+                <span><strong>高速処理:</strong> 3MPの画像なら約5-10秒、大きな画像でも数十秒で処理完了</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-yellow-500 mr-2">✓</span>
+                <span><strong>リアルタイム体験:</strong> 待ち時間が短く、すぐに結果を確認できるためストレスフリー</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-yellow-500 mr-2">✓</span>
+                <span><strong>バランス型:</strong> 品質を犠牲にしすぎず、日常的な用途に十分な精度を維持</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-yellow-500 mr-2">✓</span>
+                <span><strong>メモリ効率:</strong> サーバーリソースを節約し、同時に複数のユーザーが使用しても安定</span>
+              </div>
+            </div>
           </div>
           
           <div className="bg-white rounded p-3 border border-blue-100">
@@ -276,10 +310,30 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             </div>
             <p className="text-gray-700 leading-relaxed">
               <strong>Depth Anythingモデルを使用。</strong>
-              このモデルは1400万枚もの大量の写真で学習された「万能型」のモデルです。
-              人物写真、風景写真、室内・室外、日中・夜間など、あらゆるシーンで安定した結果を提供します。
-              「どのモデルを選べばいいかわからない」方は、まずこのモデルからお試しください。
+              このモデルは1400万枚もの大量の写真で学習された「基盤モデル」で、あらゆるシチュエーションに対応できる汎用性が最大の特徴です。
             </p>
+            <div className="mt-3 space-y-2 text-sm text-gray-600">
+              <div className="flex items-start">
+                <span className="text-purple-500 mr-2">🌍</span>
+                <span><strong>圧倒的なデータ量:</strong> 1400万枚の多様な写真で学習し、見たことのないシーンでも安定して動作</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-purple-500 mr-2">✓</span>
+                <span><strong>シーンを選ばない:</strong> 人物・風景・建物・動物・食べ物など、どんな被写体でも適切に処理</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-purple-500 mr-2">✓</span>
+                <span><strong>環境に左右されない:</strong> 室内・屋外、明るい・暗い、晴れ・曇り・雨などの条件変化に強い</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-purple-500 mr-2">✓</span>
+                <span><strong>初心者に優しい:</strong> モデル選択に迷ったら、まずこちらでテストして結果を確認</span>
+              </div>
+              <div className="flex items-start">
+                <span className="text-purple-500 mr-2">✓</span>
+                <span><strong>安定性重視:</strong> 予想外の結果やエラーが起きにくい、信頼性の高いモデル</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
