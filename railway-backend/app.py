@@ -150,17 +150,18 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     # PIL Imageに変換
     logger.info(f"MiDaS - Before fromarray: depth_map.shape = {depth_map.shape}")
     
-    # Ensure depth map shape exactly matches image dimensions (h, w)
+    # TEMPORARILY DISABLE transpose to test if this is causing the 90-degree rotation
     logger.info(f"MiDaS - Target image size: {new_w}x{new_h} (WxH)")
     logger.info(f"MiDaS - Depth array shape: {depth_map.shape} (should be {new_h}x{new_w})")
+    logger.info("MiDaS - TRANSPOSE DISABLED FOR TESTING")
     
-    # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
-    if depth_map.shape != (new_h, new_w):
-        if depth_map.shape == (new_w, new_h):
-            logger.info("MiDaS - Transposing depth_map to match image dimensions")
-            depth_map = depth_map.T
-        else:
-            logger.warning(f"MiDaS - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
+    # # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
+    # if depth_map.shape != (new_h, new_w):
+    #     if depth_map.shape == (new_w, new_h):
+    #         logger.info("MiDaS - Transposing depth_map to match image dimensions")
+    #         depth_map = depth_map.T
+    #     else:
+    #         logger.warning(f"MiDaS - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
     
     logger.info(f"MiDaS - Final depth_map shape: {depth_map.shape}")
     
@@ -358,13 +359,16 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     logger.info(f"DPT - Target image size: {new_w}x{new_h} (WxH)")
     logger.info(f"DPT - Depth array shape: {depth_map.shape} (should be {new_h}x{new_w})")
     
-    # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
-    if depth_map.shape != (new_h, new_w):
-        if depth_map.shape == (new_w, new_h):
-            logger.info("DPT - Transposing depth_map to match image dimensions")
-            depth_map = depth_map.T
-        else:
-            logger.warning(f"DPT - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
+    # TEMPORARILY DISABLE transpose to test if this is causing the 90-degree rotation
+    logger.info("DPT - TRANSPOSE DISABLED FOR TESTING")
+    
+    # # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
+    # if depth_map.shape != (new_h, new_w):
+    #     if depth_map.shape == (new_w, new_h):
+    #         logger.info("DPT - Transposing depth_map to match image dimensions")
+    #         depth_map = depth_map.T
+    #     else:
+    #         logger.warning(f"DPT - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
     
     logger.info(f"DPT - Final depth_map shape: {depth_map.shape}")
     
@@ -458,13 +462,16 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     logger.info(f"DepthAnything - Target image size: {new_w}x{new_h} (WxH)")
     logger.info(f"DepthAnything - Depth array shape: {depth_map.shape} (should be {new_h}x{new_w})")
     
-    # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
-    if depth_map.shape != (new_h, new_w):
-        if depth_map.shape == (new_w, new_h):
-            logger.info("DepthAnything - Transposing depth_map to match image dimensions")
-            depth_map = depth_map.T
-        else:
-            logger.warning(f"DepthAnything - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
+    # TEMPORARILY DISABLE transpose to test if this is causing the 90-degree rotation
+    logger.info("DepthAnything - TRANSPOSE DISABLED FOR TESTING")
+    
+    # # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
+    # if depth_map.shape != (new_h, new_w):
+    #     if depth_map.shape == (new_w, new_h):
+    #         logger.info("DepthAnything - Transposing depth_map to match image dimensions")
+    #         depth_map = depth_map.T
+    #     else:
+    #         logger.warning(f"DepthAnything - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
     
     logger.info(f"DepthAnything - Final depth_map shape: {depth_map.shape}")
     
@@ -774,9 +781,10 @@ async def predict_depth(
             if image.format not in ['JPEG', 'PNG', 'BMP', 'TIFF', 'WEBP']:
                 logger.warning(f"Unusual image format: {image.format}")
             
-            # IMPORTANT: Do NOT apply EXIF orientation to prevent unwanted rotation
-            # Keep the image exactly as uploaded without any automatic rotation
-            logger.info(f"Original image before convert: {image.size}, mode: {image.mode}, format: {image.format}")
+            # IMPORTANT: Frontend already applied EXIF orientation correction
+            # The image we receive is already in the correct orientation
+            # Just convert to RGB without any additional rotation
+            logger.info(f"Image received from frontend (already EXIF-corrected): {image.size}, mode: {image.mode}, format: {image.format}")
             image = image.convert('RGB')
             logger.info(f"After RGB conversion: {image.size}")
             
