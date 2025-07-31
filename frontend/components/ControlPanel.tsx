@@ -67,7 +67,7 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
               背景色
             </label>
             <div className="flex space-x-2">
-              {['#000000', '#ffffff', '#1f2937', '#0f172a'].map((color) => (
+              {['#000000', '#ffffff', '#2d3748', '#1a202c', '#4a5568', '#718096'].map((color) => (
                 <button
                   key={color}
                   onClick={() => handleSettingChange('backgroundColor', color)}
