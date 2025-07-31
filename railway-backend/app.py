@@ -294,7 +294,7 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     gray_array = np.dot(img_array[...,:3], [0.299, 0.587, 0.114])
     
     # 疑似トランスフォーマー処理: マルチスケール特徴抽出
-    scales = [1.0, 0.8]  # Reduced from 3 to 2 scales for memory efficiency
+    scales = [1.0]  # Single scale only for minimal memory usage
     scale_features = []
     
     for scale in scales:
@@ -328,12 +328,8 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
         combined_feature = (edge_strength * 0.6 + texture_response * 0.4) * scale_weight
         scale_features.append(combined_feature)
     
-    # マルチスケール融合（DPTのdense prediction head風）
-    fused_features = np.zeros_like(scale_features[0])
-    weights = [0.6, 0.4]  # 2 scales only for memory efficiency
-    
-    for i, feature in enumerate(scale_features):
-        fused_features += feature * weights[i]
+    # Single scale processing for minimal memory usage
+    fused_features = scale_features[0]  # No fusion needed for single scale
     
     # 垂直バイアス（透視）
     height_bias = np.linspace(1.0, 0.4, new_h).reshape(-1, 1)
@@ -631,7 +627,7 @@ def zoedepth_inspired(image: Image.Image):
     gray = image.convert('L')
     
     # Multi-scale processing for absolute depth
-    scales = [1.0, 0.8]  # Reduced from 3 to 2 scales for memory efficiency
+    scales = [1.0]  # Single scale only for minimal memory usage
     depth_maps = []
     
     for scale in scales:
@@ -692,7 +688,7 @@ def apply_grayscale_depth_map(depth_image):
 def generate_pointcloud(original_image, depth_image):
     """3Dポイントクラウドデータ生成"""
     w, h = original_image.size
-    downsample_factor = 12  # Increased from 8 to 12 for extreme memory efficiency
+    downsample_factor = 16  # Minimal point cloud for Railway memory limits
     points = []
     colors = []
     
@@ -790,8 +786,8 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Extreme size limitation for Railway memory constraints
-        max_pixels = 200_000  # About 447x447 or 600x333, extreme memory saving
+        # Minimal size limitation for Railway memory constraints
+        max_pixels = 100_000  # About 316x316 or 400x250, minimal memory usage
         current_pixels = image.size[0] * image.size[1]
         
         if current_pixels > max_pixels:
