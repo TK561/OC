@@ -169,10 +169,15 @@ class DepthEstimatorV2:
             self._log_memory_usage("Starting prediction")
             
             # Load image without applying EXIF orientation to prevent unwanted rotation
-            original_image = Image.open(io.BytesIO(image_data))
-            logger.info(f"depth_model_v2 - Original image loaded: {original_image.size}, mode: {original_image.mode}")
+            temp_image = Image.open(io.BytesIO(image_data))
+            logger.info(f"depth_model_v2 - Original image loaded: {temp_image.size}, mode: {temp_image.mode}")
+            
+            # Remove EXIF data entirely to prevent any automatic rotation
+            data = list(temp_image.getdata())
+            original_image = Image.new(temp_image.mode, temp_image.size)
+            original_image.putdata(data)
             original_image = original_image.convert("RGB")
-            logger.info(f"depth_model_v2 - After RGB conversion: {original_image.size}")
+            logger.info(f"depth_model_v2 - After EXIF-free RGB conversion: {original_image.size}")
             
             # Get model configuration
             model_name = model_name or settings.DEFAULT_DEPTH_MODEL
@@ -402,10 +407,15 @@ class DepthEstimatorV2:
         
         try:
             # Load image without applying EXIF orientation to prevent unwanted rotation
-            original_image = Image.open(io.BytesIO(image_data))
-            logger.info(f"depth_model_v2 get_depth_array - Original image loaded: {original_image.size}, mode: {original_image.mode}")
+            temp_image = Image.open(io.BytesIO(image_data))
+            logger.info(f"depth_model_v2 get_depth_array - Original image loaded: {temp_image.size}, mode: {temp_image.mode}")
+            
+            # Remove EXIF data entirely to prevent any automatic rotation
+            data = list(temp_image.getdata())
+            original_image = Image.new(temp_image.mode, temp_image.size)
+            original_image.putdata(data)
             original_image = original_image.convert("RGB")
-            logger.info(f"depth_model_v2 get_depth_array - After RGB conversion: {original_image.size}")
+            logger.info(f"depth_model_v2 get_depth_array - After EXIF-free RGB conversion: {original_image.size}")
             
             # Get model configuration
             model_name = model_name or settings.DEFAULT_DEPTH_MODEL

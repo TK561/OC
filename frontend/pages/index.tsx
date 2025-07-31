@@ -50,6 +50,8 @@ export default function Home() {
           reader.readAsDataURL(blob)
         })
       }
+      
+      console.log('Original image data URL type:', imageDataUrl.substring(0, 50))
 
       console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
       
