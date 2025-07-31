@@ -695,13 +695,7 @@ def apply_grayscale_depth_map(depth_image):
 
 def generate_pointcloud(original_image, depth_image):
     """3Dポイントクラウドデータ生成 - アスペクト比を考慮した座標変換"""
-    # EXIF情報を適用して正しい向きに調整
-    try:
-        original_image = ImageOps.exif_transpose(original_image)
-        depth_image = ImageOps.exif_transpose(depth_image)
-        logger.info(f"Applied EXIF transpose to images for pointcloud generation")
-    except Exception as exif_error:
-        logger.warning(f"EXIF transpose failed in pointcloud generation: {exif_error}")
+    # EXIF処理はすでにメイン処理で適用済みなのでここでは適用しない
     
     w, h = original_image.size
     downsample_factor = 12
@@ -711,14 +705,13 @@ def generate_pointcloud(original_image, depth_image):
     orig_pixels = original_image.load()
     depth_pixels = depth_image.load()
     
-    # アスペクト比を考慮したスケーリング計算
+    # 修正: 統一されたスケーリング計算
     aspect_ratio = w / h
-    if aspect_ratio > 1.0:  # 横長画像
-        scale_x = 1.6
-        scale_y = 1.6 / aspect_ratio
-    else:  # 縦長画像または正方形
-        scale_x = 1.6 * aspect_ratio
-        scale_y = 1.6
+    base_scale = 1.6
+    
+    # 常に正しいアスペクト比を維持
+    scale_x = base_scale
+    scale_y = base_scale
     
     logger.info(f"Point cloud generation: image size {w}x{h}, aspect_ratio={aspect_ratio:.3f}, scale_x={scale_x:.3f}, scale_y={scale_y:.3f}")
     
@@ -729,8 +722,8 @@ def generate_pointcloud(original_image, depth_image):
                 # PIL load() uses (x, y) coordinate system
                 depth_val = depth_pixels[x, y] / 255.0
                 
-                # アスペクト比を考慮した正規化座標計算
-                x_norm = (x / w - 0.5) * scale_x
+                # 修正: 正しいアスペクト比を維持した座標計算
+                x_norm = (x / w - 0.5) * scale_x * aspect_ratio
                 # Y軸を反転して3D座標系に合わせる（上向きが正）
                 y_norm = -(y / h - 0.5) * scale_y
                 z_norm = depth_val * 2 - 1
