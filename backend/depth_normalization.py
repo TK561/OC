@@ -22,19 +22,21 @@ def normalize_depth_output(depth_array, model_name):
     # モデル名を正規化
     model_lower = model_name.lower()
     
-    # DPTとMiDaSは「近い＝大きい値」なので反転が必要
-    if 'dpt' in model_lower or 'midas' in model_lower:
-        # 値を反転（1 - normalized_value）
-        # まず0-1に正規化
-        min_val = np.min(depth_array)
-        max_val = np.max(depth_array)
-        
-        if max_val - min_val > 0:
-            normalized = (depth_array - min_val) / (max_val - min_val)
-        else:
-            normalized = np.zeros_like(depth_array)
-        
-        # 反転して返す
+    # まず0-1に正規化
+    min_val = np.min(depth_array)
+    max_val = np.max(depth_array)
+    
+    if max_val - min_val > 0:
+        normalized = (depth_array - min_val) / (max_val - min_val)
+    else:
+        normalized = np.zeros_like(depth_array)
+    
+    # DPT-Largeは「近い＝小さい値」なのでそのまま
+    if 'dpt-large' in model_lower:
+        return normalized
+    
+    # MiDaSは「近い＝大きい値」なので反転が必要
+    elif 'midas' in model_lower or 'dpt-hybrid-midas' in model_lower:
         return 1.0 - normalized
     
     # Depth Anythingは「遠い＝大きい値」なのでそのまま正規化
