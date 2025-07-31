@@ -777,6 +777,7 @@ async def predict_depth(
         # Get model configuration
         config = MODEL_CONFIGS[model]
         logger.info(f"Using model config: {config}")
+        logger.info("Railway deployment refresh - portrait image fix active")
         
         # Depth estimation based on model type
         model_type = config["type"]
