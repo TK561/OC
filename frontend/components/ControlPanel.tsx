@@ -8,7 +8,6 @@ interface ControlPanelProps {
 }
 
 export default function ControlPanel({ settings, onSettingsChange, depthResult }: ControlPanelProps) {
-  const [isGenerating3D, setIsGenerating3D] = useState(false)
 
   const handleSettingChange = (key: keyof ViewerSettings, value: any) => {
     onSettingsChange({
@@ -17,71 +16,6 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
     })
   }
 
-  const handleGenerate3D = async (format: 'ply' | 'obj') => {
-    setIsGenerating3D(true)
-    try {
-      // Get the original image from the result
-      if (!depthResult.originalUrl) {
-        throw new Error('元画像データが見つかりません')
-      }
-
-      // Convert data URL to blob if needed
-      let imageBlob: Blob
-      if (depthResult.originalUrl.startsWith('data:')) {
-        // Data URL - convert to blob
-        const response = await fetch(depthResult.originalUrl)
-        imageBlob = await response.blob()
-      } else {
-        // Regular URL - fetch from backend
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}${depthResult.originalUrl}`)
-        if (!response.ok) {
-          throw new Error('元画像の取得に失敗しました')
-        }
-        imageBlob = await response.blob()
-      }
-
-      const formData = new FormData()
-      formData.append('file', imageBlob, 'image.jpg')
-      formData.append('model', depthResult.model || 'Intel/dpt-large')
-      formData.append('format', format)
-
-      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/export-3d`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!apiResponse.ok) {
-        const errorText = await apiResponse.text()
-        throw new Error(`API Error: ${apiResponse.status} - ${errorText}`)
-      }
-
-      // Download the generated file
-      const resultBlob = await apiResponse.blob()
-      const downloadUrl = window.URL.createObjectURL(resultBlob)
-      
-      // Generate filename with model and timestamp
-      const modelName = depthResult.model?.replace('/', '_') || 'unknown'
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:]/g, '-')
-      const filename = `depth_${modelName}_${timestamp}.${format}`
-      
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      
-      window.URL.revokeObjectURL(downloadUrl)
-      
-      console.log(`✅ ${format.toUpperCase()} file downloaded: ${filename}`)
-    } catch (error) {
-      console.error('3D export failed:', error)
-      const errorMessage = error instanceof Error ? error.message : '不明なエラー'
-      alert(`3Dファイルの生成に失敗しました:\n${errorMessage}`)
-    } finally {
-      setIsGenerating3D(false)
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -172,33 +106,6 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
         </div>
       </div>
 
-      {/* Export Options */}
-      <div className="card">
-        <h3 className="text-lg font-semibold mb-4">エクスポート</h3>
-        
-        <div className="space-y-3">
-          <button
-            onClick={() => handleGenerate3D('ply')}
-            disabled={isGenerating3D}
-            className="btn-primary w-full"
-          >
-            {isGenerating3D ? '生成中...' : '📦 PLYファイル出力'}
-          </button>
-          
-          <button
-            onClick={() => handleGenerate3D('obj')}
-            disabled={isGenerating3D}
-            className="btn-secondary w-full"
-          >
-            {isGenerating3D ? '生成中...' : '📐 OBJファイル出力'}
-          </button>
-        </div>
-        
-        <div className="mt-4 text-xs text-gray-500">
-          <p>• PLY: ポイントクラウド形式（推奨）</p>
-          <p>• OBJ: メッシュ形式（処理時間長）</p>
-        </div>
-      </div>
 
       {/* Processing Info */}
       <div className="card">
@@ -229,8 +136,8 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
         <ul className="text-xs text-blue-800 space-y-1">
           <li>• マウスで3Dビューを回転・ズーム可能</li>
           <li>• カラーマップで深度の可視化を調整</li>
-          <li>• PLY形式は軽量で推奨</li>
-          <li>• OBJ形式はメッシュ生成で時間がかかります</li>
+          <li>• ポイントサイズで点の大きさを調節</li>
+          <li>• 背景色は自由に変更できます</li>
         </ul>
       </div>
     </div>
