@@ -771,6 +771,7 @@ async def predict_depth(
         
         # Get model configuration
         config = MODEL_CONFIGS[model]
+        logger.info(f"Using model config: {config}")
         
         # Depth estimation based on model type
         model_type = config["type"]
