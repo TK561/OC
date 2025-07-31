@@ -191,15 +191,21 @@ async def estimate_depth(
         
         # Process image without applying EXIF orientation to prevent unwanted rotation
         image = Image.open(io.BytesIO(image_data))
+        logger.info(f"free_tier_server - Original image loaded: {image.size}, mode: {image.mode}")
         image = image.convert('RGB')
+        logger.info(f"free_tier_server - After RGB conversion: {image.size}")
         
         # Resize for free tier memory constraints
         max_size = 512  # Reduce from default 1024
+        logger.info(f"free_tier_server - Before size limitation: {image.size}")
         if max(image.size) > max_size:
             ratio = max_size / max(image.size)
             new_size = tuple(int(dim * ratio) for dim in image.size)
+            logger.info(f"free_tier_server - Resizing from {image.size} to {new_size} (ratio: {ratio:.3f})")
             image = image.resize(new_size, Image.Resampling.LANCZOS)
             logger.info(f"📏 Resized image to {new_size}")
+        else:
+            logger.info(f"free_tier_server - No resizing needed, image size {image.size} <= {max_size}")
         
         # Prepare inputs
         inputs = estimator['processor'](images=image, return_tensors="pt")

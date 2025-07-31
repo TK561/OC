@@ -80,11 +80,15 @@ async def estimate_depth(file: UploadFile = File(...)):
         
         # Open image without applying EXIF orientation to prevent unwanted rotation
         image = Image.open(io.BytesIO(image_data))
+        logger.info(f"minimal_server - Original image loaded: {image.size}, mode: {image.mode}")
         image = image.convert("RGB")
+        logger.info(f"minimal_server - After RGB conversion: {image.size}")
         
         # Resize to small size
         max_size = 256
+        logger.info(f"minimal_server - Before thumbnail: {image.size}")
         image.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+        logger.info(f"minimal_server - After thumbnail: {image.size}")
         
         # Create simple gradient depth map
         width, height = image.size

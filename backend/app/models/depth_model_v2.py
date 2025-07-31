@@ -170,7 +170,9 @@ class DepthEstimatorV2:
             
             # Load image without applying EXIF orientation to prevent unwanted rotation
             original_image = Image.open(io.BytesIO(image_data))
+            logger.info(f"depth_model_v2 - Original image loaded: {original_image.size}, mode: {original_image.mode}")
             original_image = original_image.convert("RGB")
+            logger.info(f"depth_model_v2 - After RGB conversion: {original_image.size}")
             
             # Get model configuration
             model_name = model_name or settings.DEFAULT_DEPTH_MODEL
@@ -242,23 +244,32 @@ class DepthEstimatorV2:
         config: Dict[str, Any]
     ) -> Image.Image:
         """Model-specific image preprocessing"""
+        w, h = image.size
+        logger.info(f"depth_model_v2 _preprocess_image - Input size: {w}x{h}, target_size: {target_size}")
+        
         if config.get("keep_aspect_ratio", True):
             # Resize keeping aspect ratio
-            w, h = image.size
             scale = target_size / max(w, h)
             new_w = int(w * scale)
             new_h = int(h * scale)
+            logger.info(f"depth_model_v2 _preprocess_image - Calculated scale: {scale}, new size: {new_w}x{new_h}")
             
             # Ensure multiple of N if required
             multiple = config.get("ensure_multiple_of", 1)
             if multiple > 1:
                 new_w = int(np.ceil(new_w / multiple) * multiple)
                 new_h = int(np.ceil(new_h / multiple) * multiple)
+                logger.info(f"depth_model_v2 _preprocess_image - After multiple adjustment: {new_w}x{new_h}")
             
-            return image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            result = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+            logger.info(f"depth_model_v2 _preprocess_image - Final result: {result.size}")
+            return result
         else:
             # Direct resize to square
-            return image.resize((target_size, target_size), Image.Resampling.LANCZOS)
+            logger.info(f"depth_model_v2 _preprocess_image - Square resize to: {target_size}x{target_size}")
+            result = image.resize((target_size, target_size), Image.Resampling.LANCZOS)
+            logger.info(f"depth_model_v2 _preprocess_image - Square result: {result.size}")
+            return result
     
     def _postprocess_depth(
         self,
@@ -270,6 +281,13 @@ class DepthEstimatorV2:
         # Remove batch dimension
         depth = predicted_depth.squeeze(0)
         
+        # original_size is (W, H) from PIL Image.size
+        # PyTorch F.interpolate expects size as (H, W)
+        target_height = original_size[1]  # H
+        target_width = original_size[0]   # W
+        logger.info(f"depth_model_v2 _postprocess_depth - Original size: {original_size} (W, H)")
+        logger.info(f"depth_model_v2 _postprocess_depth - Target interpolation size: ({target_height}, {target_width}) (H, W)")
+        
         # Model-specific processing
         model_type = config.get("type", "unknown")
         
@@ -277,7 +295,7 @@ class DepthEstimatorV2:
             # DPT-Large: Standard interpolation
             depth_resized = F.interpolate(
                 depth.unsqueeze(0).unsqueeze(0),
-                size=(original_size[1], original_size[0]),  # (H, W)
+                size=(target_height, target_width),  # (H, W)
                 mode="bicubic",
                 align_corners=False
             )
@@ -285,7 +303,7 @@ class DepthEstimatorV2:
             # MiDaS: Uses specific interpolation from GitHub
             depth_resized = F.interpolate(
                 depth.unsqueeze(0).unsqueeze(0),
-                size=(original_size[1], original_size[0]),  # (H, W) 
+                size=(target_height, target_width),  # (H, W) 
                 mode="bicubic",
                 align_corners=False
             )
@@ -293,13 +311,14 @@ class DepthEstimatorV2:
             # Default processing
             depth_resized = F.interpolate(
                 depth.unsqueeze(0).unsqueeze(0),
-                size=(original_size[1], original_size[0]),  # (H, W)
+                size=(target_height, target_width),  # (H, W)
                 mode=config.get("resize_method", "bilinear"),
                 align_corners=config.get("align_corners", False)
             )
         
         # Convert to numpy
         depth_array = depth_resized.squeeze().cpu().numpy()
+        logger.info(f"depth_model_v2 _postprocess_depth - Final depth array shape: {depth_array.shape}")
         
         return depth_array
     
@@ -382,7 +401,11 @@ class DepthEstimatorV2:
         processor = None
         
         try:
-            original_image = Image.open(io.BytesIO(image_data)).convert("RGB")
+            # Load image without applying EXIF orientation to prevent unwanted rotation
+            original_image = Image.open(io.BytesIO(image_data))
+            logger.info(f"depth_model_v2 get_depth_array - Original image loaded: {original_image.size}, mode: {original_image.mode}")
+            original_image = original_image.convert("RGB")
+            logger.info(f"depth_model_v2 get_depth_array - After RGB conversion: {original_image.size}")
             
             # Get model configuration
             model_name = model_name or settings.DEFAULT_DEPTH_MODEL

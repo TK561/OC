@@ -728,9 +728,9 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Size limitation based on model
-        config = MODEL_CONFIGS[model]
-        max_size = config["input_size"]
+        # Size limitation - use reasonable max size instead of model input_size
+        # Model input_size is for internal processing, not user image limit
+        max_size = 2048  # Much more reasonable limit for user images
         
         logger.info(f"Before size limitation: {image.size}")
         if max(image.size) > max_size:
@@ -738,6 +738,9 @@ async def predict_depth(
             new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
             logger.info(f"Resizing from {image.size} to {new_size} (ratio: {ratio:.3f})")
             image = image.resize(new_size, Image.Resampling.LANCZOS)
+            logger.info(f"After size limitation: {image.size}")
+        else:
+            logger.info(f"No resizing needed, image size {image.size} <= {max_size}")
         
         logger.info(f"Final processing size: {image.size}")
         
