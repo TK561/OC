@@ -695,6 +695,8 @@ async def predict_depth(
             if image.format not in ['JPEG', 'PNG', 'BMP', 'TIFF', 'WEBP']:
                 logger.warning(f"Unusual image format: {image.format}")
             
+            # IMPORTANT: Do NOT apply EXIF orientation to prevent unwanted rotation
+            # Keep the image exactly as uploaded without any automatic rotation
             image = image.convert('RGB')
             logger.info(f"Successfully loaded image: {image.size}, format: {image.format}")
         except Exception as img_error:

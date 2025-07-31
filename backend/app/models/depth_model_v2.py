@@ -168,8 +168,9 @@ class DepthEstimatorV2:
         try:
             self._log_memory_usage("Starting prediction")
             
-            # Load image
-            original_image = Image.open(io.BytesIO(image_data)).convert("RGB")
+            # Load image without applying EXIF orientation to prevent unwanted rotation
+            original_image = Image.open(io.BytesIO(image_data))
+            original_image = original_image.convert("RGB")
             
             # Get model configuration
             model_name = model_name or settings.DEFAULT_DEPTH_MODEL

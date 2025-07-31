@@ -78,8 +78,9 @@ async def estimate_depth(file: UploadFile = File(...)):
         if len(image_data) > 5 * 1024 * 1024:  # 5MB limit
             raise HTTPException(status_code=400, detail="File too large")
         
-        # Open image
-        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+        # Open image without applying EXIF orientation to prevent unwanted rotation
+        image = Image.open(io.BytesIO(image_data))
+        image = image.convert("RGB")
         
         # Resize to small size
         max_size = 256

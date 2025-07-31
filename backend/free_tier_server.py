@@ -189,8 +189,9 @@ async def estimate_depth(
         import io
         import base64
         
-        # Process image
-        image = Image.open(io.BytesIO(image_data)).convert('RGB')
+        # Process image without applying EXIF orientation to prevent unwanted rotation
+        image = Image.open(io.BytesIO(image_data))
+        image = image.convert('RGB')
         
         # Resize for free tier memory constraints
         max_size = 512  # Reduce from default 1024

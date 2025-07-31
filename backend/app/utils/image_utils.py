@@ -26,7 +26,9 @@ def validate_image(file) -> bool:
 def process_image(image_data: bytes, target_size: Optional[Tuple[int, int]] = None) -> Image.Image:
     """Process and normalize image"""
     try:
-        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+        # Load image without applying EXIF orientation to prevent unwanted rotation
+        image = Image.open(io.BytesIO(image_data))
+        image = image.convert("RGB")
         
         if target_size:
             image = image.resize(target_size, Image.Resampling.LANCZOS)
@@ -44,7 +46,9 @@ def apply_edge_detection(
 ) -> Image.Image:
     """Apply edge detection to image"""
     try:
-        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+        # Load image without applying EXIF orientation to prevent unwanted rotation
+        image = Image.open(io.BytesIO(image_data))
+        image = image.convert("RGB")
         image_array = np.array(image)
         
         # Convert to grayscale
@@ -80,7 +84,9 @@ def apply_blur(
 ) -> Image.Image:
     """Apply blur effect to image"""
     try:
-        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+        # Load image without applying EXIF orientation to prevent unwanted rotation
+        image = Image.open(io.BytesIO(image_data))
+        image = image.convert("RGB")
         
         if method.lower() == "gaussian":
             blurred = image.filter(ImageFilter.GaussianBlur(radius=radius))
@@ -113,7 +119,9 @@ def apply_color_correction(
 ) -> Image.Image:
     """Apply color correction to image"""
     try:
-        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+        # Load image without applying EXIF orientation to prevent unwanted rotation
+        image = Image.open(io.BytesIO(image_data))
+        image = image.convert("RGB")
         
         # Apply brightness
         if brightness != 1.0:
@@ -139,7 +147,9 @@ def apply_color_correction(
 def apply_histogram_equalization(image_data: bytes) -> Image.Image:
     """Apply histogram equalization to improve contrast"""
     try:
-        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+        # Load image without applying EXIF orientation to prevent unwanted rotation
+        image = Image.open(io.BytesIO(image_data))
+        image = image.convert("RGB")
         image_array = np.array(image)
         
         # Convert to YUV color space
