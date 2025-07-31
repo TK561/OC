@@ -10,7 +10,7 @@ interface ThreeSceneProps {
 export default function ThreeScene({ originalImage, depthResult, settings }: ThreeSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [rotation, setRotation] = useState({ x: -0.26, y: 0.52 })  // 人間の視覚認知に最適な角度（X:-15°, Y:30°）
+  const [rotation, setRotation] = useState({ x: 0, y: 0 })  // 初期位置を0度、0度（画面に対して平行）に設定
   const [isDragging, setIsDragging] = useState(false)
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1.8)  // 初期ズームを大きく設定
@@ -222,7 +222,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
   }
 
   const resetToInitialView = () => {
-    setRotation({ x: -0.26, y: 0.52 })  // 初期角度に戻す（人間の視覚認知に最適な角度）
+    setRotation({ x: 0, y: 0 })  // 初期角度に戻す（0度、0度）
     setZoom(1.8)  // 初期ズームに戻す
   }
 
