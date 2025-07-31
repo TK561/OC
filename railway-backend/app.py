@@ -294,7 +294,7 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     gray_array = np.dot(img_array[...,:3], [0.299, 0.587, 0.114])
     
     # 疑似トランスフォーマー処理: マルチスケール特徴抽出
-    scales = [1.0, 0.8]  # Restore working 2-scale configuration
+    scales = [1.0]  # Single scale to reduce memory usage
     scale_features = []
     
     for scale in scales:
@@ -328,12 +328,8 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
         combined_feature = (edge_strength * 0.6 + texture_response * 0.4) * scale_weight
         scale_features.append(combined_feature)
     
-    # マルチスケール融合（DPTのdense prediction head風）
-    fused_features = np.zeros_like(scale_features[0])
-    weights = [0.6, 0.4]  # Restore working 2-scale fusion
-    
-    for i, feature in enumerate(scale_features):
-        fused_features += feature * weights[i]
+    # Single scale processing for memory efficiency
+    fused_features = scale_features[0]
     
     # 垂直バイアス（透視）
     height_bias = np.linspace(1.0, 0.4, new_h).reshape(-1, 1)
@@ -631,7 +627,7 @@ def zoedepth_inspired(image: Image.Image):
     gray = image.convert('L')
     
     # Multi-scale processing for absolute depth
-    scales = [1.0, 0.8]  # Restore working 2-scale configuration
+    scales = [1.0]  # Single scale to reduce memory usage
     depth_maps = []
     
     for scale in scales:
@@ -790,8 +786,8 @@ async def predict_depth(
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
-        # Safe size limitation for Railway memory constraints
-        max_pixels = 150_000  # About 387x387 or 500x300, safe config
+        # Conservative size limitation for Railway memory constraints
+        max_pixels = 80_000  # About 283x283 or 400x200, very conservative
         current_pixels = image.size[0] * image.size[1]
         
         if current_pixels > max_pixels:
