@@ -57,15 +57,20 @@ model_cache = {}
 def midas_inspired_depth(image: Image.Image, original_size=None):
     """MiDaS風深度推定 - OpenCVスタイルのマルチスケール処理"""
     w, h = image.size
+    logger.info(f"MiDaS function - Input size: {image.size} (w={w}, h={h})")
+    logger.info(f"MiDaS function - Original size param: {original_size}")
     original_image = image.copy()
     
     # MiDaS風の前処理: 384x384にリサイズ（アスペクト比維持）
     if w > h:
         new_w, new_h = 384, int(384 * h / w)
+        logger.info(f"MiDaS - Landscape image: {w}x{h} -> {new_w}x{new_h}")
     else:
         new_w, new_h = int(384 * w / h), 384
+        logger.info(f"MiDaS - Portrait image: {w}x{h} -> {new_w}x{new_h}")
     
     resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    logger.info(f"MiDaS - After resize: {resized.size}")
     
     # RGB値を[-1, 1]に正規化（MiDaS/DPTスタイル）
     img_array = np.array(resized, dtype=np.float32) / 255.0
@@ -141,7 +146,9 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     
     # 元のサイズに戻す（バイキュービック補間）
     target_size = original_size if original_size else (w, h)
+    logger.info(f"MiDaS - Resizing depth map from {depth_pil.size} to target_size: {target_size}")
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
+    logger.info(f"MiDaS - Final depth map size: {depth_final.size}")
     
     # 後処理: 軽いぼかしとコントラスト調整
     depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.0))
@@ -244,14 +251,19 @@ def compute_texture_variance(gray_img, w, h):
 def dpt_inspired_depth(image: Image.Image, original_size=None):
     """DPT風深度推定 - GitHub調査に基づく逆深度処理"""
     w, h = image.size
+    logger.info(f"DPT function - Input size: {image.size} (w={w}, h={h})")
+    logger.info(f"DPT function - Original size param: {original_size}")
     
     # DPT風前処理（384x384リサイズ）
     if w > h:
         new_w, new_h = 384, int(384 * h / w)
+        logger.info(f"DPT - Landscape image: {w}x{h} -> {new_w}x{new_h}")
     else:
         new_w, new_h = int(384 * w / h), 384
+        logger.info(f"DPT - Portrait image: {w}x{h} -> {new_w}x{new_h}")
     
     resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    logger.info(f"DPT - After resize: {resized.size}")
     
     # RGB値を[0,1]に正規化
     img_array = np.array(resized, dtype=np.float32) / 255.0
@@ -326,7 +338,9 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     
     # 元のサイズに戻す（バイキュービック補間）
     target_size = original_size if original_size else (w, h)
+    logger.info(f"DPT - Resizing depth map from {depth_pil.size} to target_size: {target_size}")
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
+    logger.info(f"DPT - Final depth map size: {depth_final.size}")
     
     # 後処理
     depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.0))
@@ -337,14 +351,19 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
 def depth_anything_inspired(image: Image.Image, original_size=None):
     """DepthAnything風深度推定 - GitHub調査に基づく通常深度処理"""
     w, h = image.size
+    logger.info(f"DepthAnything function - Input size: {image.size} (w={w}, h={h})")
+    logger.info(f"DepthAnything function - Original size param: {original_size}")
     
     # DepthAnything風前処理（518x518リサイズ）
     if w > h:
         new_w, new_h = 518, int(518 * h / w)
+        logger.info(f"DepthAnything - Landscape image: {w}x{h} -> {new_w}x{new_h}")
     else:
         new_w, new_h = int(518 * w / h), 518
+        logger.info(f"DepthAnything - Portrait image: {w}x{h} -> {new_w}x{new_h}")
     
     resized = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+    logger.info(f"DepthAnything - After resize: {resized.size}")
     
     # RGB値を[0,1]に正規化（ImageNet統計使用）
     img_array = np.array(resized, dtype=np.float32) / 255.0
@@ -403,7 +422,9 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     
     # 元のサイズに戻す（バイキュービック補間）
     target_size = original_size if original_size else (w, h)
+    logger.info(f"DepthAnything - Resizing depth map from {depth_pil.size} to target_size: {target_size}")
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
+    logger.info(f"DepthAnything - Final depth map size: {depth_final.size}")
     
     # 後処理
     depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.5))
@@ -700,8 +721,9 @@ async def predict_depth(
             
             # IMPORTANT: Do NOT apply EXIF orientation to prevent unwanted rotation
             # Keep the image exactly as uploaded without any automatic rotation
+            logger.info(f"Original image before convert: {image.size}, mode: {image.mode}, format: {image.format}")
             image = image.convert('RGB')
-            logger.info(f"Successfully loaded image: {image.size}, format: {image.format}")
+            logger.info(f"After RGB conversion: {image.size}")
         except Exception as img_error:
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
@@ -710,15 +732,18 @@ async def predict_depth(
         config = MODEL_CONFIGS[model]
         max_size = config["input_size"]
         
+        logger.info(f"Before size limitation: {image.size}")
         if max(image.size) > max_size:
             ratio = max_size / max(image.size)
             new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
+            logger.info(f"Resizing from {image.size} to {new_size} (ratio: {ratio:.3f})")
             image = image.resize(new_size, Image.Resampling.LANCZOS)
         
-        logger.info(f"Image size: {image.size}")
+        logger.info(f"Final processing size: {image.size}")
         
         # Store original image size before any processing
         original_size = image.size
+        logger.info(f"Stored original_size for depth functions: {original_size}")
         
         # Depth estimation based on model type
         model_type = config["type"]
