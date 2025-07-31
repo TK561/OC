@@ -807,12 +807,13 @@ async def predict_depth(
             # This ensures proper orientation regardless of frontend processing
             logger.info(f"Image received: {image.size}, mode: {image.mode}, format: {image.format}")
             
-            # Apply EXIF orientation correction
-            try:
-                image = ImageOps.exif_transpose(image)
-                logger.info(f"After EXIF transpose: {image.size}")
-            except Exception as exif_error:
-                logger.warning(f"EXIF transpose failed: {exif_error}")
+            # EXIF処理はフロントエンドで既に適用済みなのでバックエンドでは適用しない
+            # try:
+            #     image = ImageOps.exif_transpose(image)
+            #     logger.info(f"After EXIF transpose: {image.size}")
+            # except Exception as exif_error:
+            #     logger.warning(f"EXIF transpose failed: {exif_error}")
+            logger.info(f"Image size without EXIF processing: {image.size}")
             
             image = image.convert('RGB')
             logger.info(f"After RGB conversion: {image.size}")
