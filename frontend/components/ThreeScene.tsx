@@ -15,6 +15,59 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
   const [lastMouse, setLastMouse] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1.8)  // 初期ズームを大きく設定
 
+  // カラーマップ関数
+  const applyColorMap = (value: number, colorMap: string): [number, number, number] => {
+    // 値を0-1の範囲に正規化
+    const t = Math.max(0, Math.min(1, value))
+    
+    switch (colorMap) {
+      case 'viridis': // 紫→青→緑→黄
+        if (t < 0.25) {
+          const s = t * 4
+          return [0.267 * (1-s) + 0.127 * s, 0.004 * (1-s) + 0.566 * s, 0.329 * (1-s) + 0.550 * s]
+        } else if (t < 0.5) {
+          const s = (t - 0.25) * 4
+          return [0.127 * (1-s) + 0.059 * s, 0.566 * (1-s) + 0.684 * s, 0.550 * (1-s) + 0.382 * s]
+        } else if (t < 0.75) {
+          const s = (t - 0.5) * 4
+          return [0.059 * (1-s) + 0.369 * s, 0.684 * (1-s) + 0.788 * s, 0.382 * (1-s) + 0.196 * s]
+        } else {
+          const s = (t - 0.75) * 4
+          return [0.369 * (1-s) + 0.993 * s, 0.788 * (1-s) + 0.906 * s, 0.196 * (1-s) + 0.144 * s]
+        }
+      
+      case 'plasma': // 紫→赤→黄
+        if (t < 0.33) {
+          const s = t * 3
+          return [0.050 * (1-s) + 0.718 * s, 0.029 * (1-s) + 0.215 * s, 0.528 * (1-s) + 0.330 * s]
+        } else if (t < 0.66) {
+          const s = (t - 0.33) * 3
+          return [0.718 * (1-s) + 0.993 * s, 0.215 * (1-s) + 0.644 * s, 0.330 * (1-s) + 0.039 * s]
+        } else {
+          const s = (t - 0.66) * 3
+          return [0.993 * (1-s) + 0.940 * s, 0.644 * (1-s) + 0.975 * s, 0.039 * (1-s) + 0.131 * s]
+        }
+      
+      case 'hot': // 黒→赤→黄→白
+        if (t < 0.33) {
+          const s = t * 3
+          return [s, 0, 0]
+        } else if (t < 0.66) {
+          const s = (t - 0.33) * 3
+          return [1, s, 0]
+        } else {
+          const s = (t - 0.66) * 3
+          return [1, 1, s]
+        }
+      
+      case 'cool': // 青→緑→赤
+        return [t, 1 - t, 1]
+      
+      default: // viridis
+        return applyColorMap(value, 'viridis')
+    }
+  }
+
   // グローバルマウスイベントの処理
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -126,9 +179,10 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         // 深度による点サイズ - より自然なサイズ変化
         const pointSize = Math.max(0.8, settings.pointSize * 10 / depth)  // 最小サイズを0.8に
         
-        // 色設定
-        const color = colors[index]
-        ctx.fillStyle = `rgb(${Math.floor(color[0] * 255)}, ${Math.floor(color[1] * 255)}, ${Math.floor(color[2] * 255)})`
+        // カラーマップを適用した色設定
+        const depthValue = (finalZ + 2) / 4  // 深度値を0-1に正規化
+        const mappedColor = applyColorMap(depthValue, settings.colorMap)
+        ctx.fillStyle = `rgb(${Math.floor(mappedColor[0] * 255)}, ${Math.floor(mappedColor[1] * 255)}, ${Math.floor(mappedColor[2] * 255)})`
         
         // 点描画
         ctx.beginPath()
