@@ -303,12 +303,18 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             </p>
             <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
               <p className="font-medium text-gray-800 mb-2">🔬 使用技術</p>
+              <p className="text-gray-600 mb-3">
+                <strong>Vision Transformer (ViT)</strong> - 自然言語処理のTransformerを画像解析に応用した革新技術。従来のCNN（畳み込みニューラルネットワーク）とは異なり、画像を16×16ピクセルの小さなパッチに分割し、各パッチを「単語」として扱います。
+              </p>
+              <p className="text-gray-600 mb-3">
+                <strong>Self-Attention機構</strong> - 各パッチが画像全体の他のすべてのパッチとの関係を同時に計算。例えば、人の顔のパッチが髪の毛や背景のパッチとどう関連するかを理解し、文脈に基づいた深度推定を実現。
+              </p>
               <p className="text-gray-600 mb-2">
-                <strong>Vision Transformer (ViT)</strong> - 画像を小さなパッチに分割し、各パッチ間の関係性をAIが学習。人間の目が細部を見るように、画像全体を詳細に分析します。
+                <strong>Dense Prediction構造</strong> - 画像の各ピクセルに対して高精度な深度値を予測。多層のTransformerエンコーダーで特徴を抽出し、デコーダーで深度マップを生成します。
               </p>
               <p className="font-medium text-gray-800 mb-2">🎯 検出方法</p>
               <p className="text-gray-600">
-                <strong>境界線重視検出</strong> - 物体の輪郭や境界を重点的に分析し、髪の毛一本一本、建物の角など、細かな境界線まで正確に深度を推定します。
+                <strong>マルチスケール境界線検出</strong> - 異なる解像度レベルで境界を検出し、細かな髪の毛から建物の大きな輪郭まで階層的に処理。グローバルコンテキストと局所的ディテールを統合した高精度な境界線推定を実現。
               </p>
             </div>
             <div className="mt-3 space-y-2 text-sm text-gray-600">
@@ -345,12 +351,18 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             </p>
             <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
               <p className="font-medium text-gray-800 mb-2">🔬 使用技術</p>
+              <p className="text-gray-600 mb-3">
+                <strong>CNN + Transformer ハイブリッドアーキテクチャ</strong> - ResNetやEfficientNetなどのCNNバックボーンで局所的な特徴（エッジ、テクスチャ）を抽出し、Transformerで長距離依存関係を捉える2段構成。CNNの計算効率とTransformerの表現力を両立。
+              </p>
+              <p className="text-gray-600 mb-3">
+                <strong>混合データセット学習</strong> - 屋内・屋外・映画など異なる特性を持つ12種類のデータセットで同時学習。各データセットの深度範囲や分布の違いを正規化し、統一的な深度表現を獲得。
+              </p>
               <p className="text-gray-600 mb-2">
-                <strong>CNN + Transformer ハイブリッド</strong> - 従来のCNN（畳み込みニューラルネットワーク）とTransformerを組み合わせ、局所的な特徴と全体的な文脈を同時に処理します。
+                <strong>逆深度パラメータ化</strong> - 通常の深度値ではなく逆深度（1/深度）を予測することで、遠距離の深度推定精度を向上。無限遠での数値安定性を確保し、より自然な深度勾配を実現。
               </p>
               <p className="font-medium text-gray-800 mb-2">🎯 検出方法</p>
               <p className="text-gray-600">
-                <strong>多段階融合検出</strong> - 複数のスケールで画像を解析し、近景から遠景まで滑らかで自然な深度変化を生成。異なるデータセットの特徴を統合して処理します。
+                <strong>適応的スケール融合</strong> - 複数解像度のピラミッド構造で特徴を抽出し、注意機構により各スケールの重要度を動的に調整。近景の細部と遠景の滑らかさを適応的にバランス調整。
               </p>
             </div>
             <div className="mt-3 space-y-2 text-sm text-gray-600">
@@ -387,12 +399,18 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             </p>
             <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
               <p className="font-medium text-gray-800 mb-2">🔬 使用技術</p>
+              <p className="text-gray-600 mb-3">
+                <strong>Foundation Model アーキテクチャ</strong> - GPTやBERTと同様の大規模Transformerベース。DINOv2やCLIPなどの事前学習済み視覚エンコーダーを活用し、1400万枚の未ラベル画像から自己教師あり学習で汎用的な視覚表現を獲得。
+              </p>
+              <p className="text-gray-600 mb-3">
+                <strong>スケール不変深度学習</strong> - 絶対深度ではなく相対深度関係を学習。アフィン不変損失関数により、カメラパラメータに依存しない汎用的な深度推定を実現。任意のスケールの画像に対応可能。
+              </p>
               <p className="text-gray-600 mb-2">
-                <strong>大規模データセット学習 Transformer</strong> - 1400万枚の多様な画像で学習したAI。あらゆる種類の画像パターンを記憶し、未知の画像でも適切に深度を推定できます。
+                <strong>マルチドメイン適応</strong> - 実写、CG、絵画、スケッチなど多様な画像ドメインで学習。ドメイン敵対的学習により、画風や撮影条件の違いに頑健な特徴表現を獲得し、未知ドメインへの汎化性能を向上。
               </p>
               <p className="font-medium text-gray-800 mb-2">🎯 検出方法</p>
               <p className="text-gray-600">
-                <strong>パターンマッチング検出</strong> - 学習した大量のパターンから最適なものを選択し、画像の文脈に応じて柔軟に深度を推定。安定性と汎用性を重視した検出を行います。
+                <strong>コンテキスト認識深度推定</strong> - 画像全体の意味的コンテキスト（室内/屋外、昼/夜など）を理解し、シーンタイプに応じた適応的な深度推定戦略を選択。局所的なテクスチャ情報と大域的な構造情報を統合。
               </p>
             </div>
             <div className="mt-3 space-y-2 text-sm text-gray-600">
