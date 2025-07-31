@@ -709,13 +709,13 @@ def generate_pointcloud(original_image, depth_image):
     aspect_ratio = w / h
     base_scale = 1.6
     
-    # アスペクト比を正確に反映
+    # 縦横比を正しく保持するスケーリング
     if aspect_ratio > 1.0:  # 横長画像
         scale_x = base_scale
         scale_y = base_scale / aspect_ratio
     else:  # 縦長画像または正方形
-        scale_x = base_scale * aspect_ratio
-        scale_y = base_scale
+        scale_x = base_scale
+        scale_y = base_scale / aspect_ratio  # 縦長ではY軸を大きくして縦長を保持
     
     logger.info(f"Point cloud generation: image size {w}x{h}, aspect_ratio={aspect_ratio:.3f}, scale_x={scale_x:.3f}, scale_y={scale_y:.3f}")
     
