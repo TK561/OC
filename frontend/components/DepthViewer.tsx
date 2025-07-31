@@ -215,40 +215,40 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         </div>
       </div>
 
-      {/* Technical Explanation */}
+      {/* Simple Explanation */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-blue-900 mb-3">🔬 深度推定技術の理論</h3>
+        <h3 className="text-sm font-medium text-blue-900 mb-3">🔍 それぞれの特徴</h3>
         <div className="space-y-3 text-sm">
           <div className="bg-white rounded p-3 border border-blue-100">
             <div className="flex items-center mb-2">
               <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高精度</span>
-              <span className="font-medium text-gray-900">DPT (Dense Prediction Transformer)</span>
+              <span className="font-medium text-gray-900">最新の高性能モデル</span>
             </div>
             <p className="text-gray-700 leading-relaxed">
-              <strong>Vision Transformerアーキテクチャを使用。</strong>画像をパッチに分割し、
-              セルフアテンションメカニズムでグローバルな文脈を理解。高解像度の特徴抽出と精密な深度推定が可能です。
+              <strong>細かいディテールまで正確に認識。</strong>人の髪の毛、葉っぱの縁、細かい物体の境界なども
+              しっかりと判別します。写真の品質を重視する方、作品やプレゼンテーション用におすすめです。
             </p>
           </div>
           
           <div className="bg-white rounded p-3 border border-blue-100">
             <div className="flex items-center mb-2">
               <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高速</span>
-              <span className="font-medium text-gray-900">MiDaS (Mixed Dataset Training)</span>
+              <span className="font-medium text-gray-900">結果をすぐに確認</span>
             </div>
             <p className="text-gray-700 leading-relaxed">
-              <strong>複数データセットでの混合学習。</strong>異なるスケールの深度データを統一し、
-              効率的なCNNベースのエンコーダーで高速処理。相対的な深度関係を学習し、リアルタイム処理を実現。
+              <strong>待ち時間が短く、すぐに結果が表示。</strong>大きな画像でも数秒で処理が完了します。
+              「とりあえず結果を見てみたい」「たくさんの画像を試したい」という方に最適です。
             </p>
           </div>
           
           <div className="bg-white rounded p-3 border border-blue-100">
             <div className="flex items-center mb-2">
               <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium mr-3">汎用</span>
-              <span className="font-medium text-gray-900">Depth Anything (Foundation Model)</span>
+              <span className="font-medium text-gray-900">どんな写真でも安心</span>
             </div>
             <p className="text-gray-700 leading-relaxed">
-              <strong>基盤モデルアプローチ。</strong>1400万枚の大規模データセットで事前学習。
-              ラベル付きデータと未ラベルデータの組み合わせで、多様なシーンに対する汎化性能を獲得。
+              <strong>あらゆる種類の写真に対応。</strong>人物写真、風景写真、室内・室外、日中・夜間など、
+              シーンを選ばず安定した結果を提供。「どのモデルを選べばいいかわからない」方は、まずこちらをお試しください。
             </p>
           </div>
         </div>
@@ -271,28 +271,6 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         </p>
       </div>
 
-      {/* Technical Details */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-green-900 mb-3">⚙️ 技術的特徴</h3>
-        <div className="space-y-2 text-sm text-green-800">
-          <div className="flex items-start">
-            <span className="text-green-600 mr-2">•</span>
-            <span><strong>単眼深度推定</strong>：1枚の画像からシーンの3D構造を推定</span>
-          </div>
-          <div className="flex items-start">
-            <span className="text-green-600 mr-2">•</span>
-            <span><strong>相対深度</strong>：絶対距離ではなく、相対的な近さを表現</span>
-          </div>
-          <div className="flex items-start">
-            <span className="text-green-600 mr-2">•</span>
-            <span><strong>ニューラルネットワーク</strong>：深層学習で訓練されたモデルを使用</span>
-          </div>
-          <div className="flex items-start">
-            <span className="text-green-600 mr-2">•</span>
-            <span><strong>ピクセル単位</strong>：各ピクセルに深度値を割り当ててマップを生成</span>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
