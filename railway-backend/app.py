@@ -695,6 +695,14 @@ def apply_grayscale_depth_map(depth_image):
 
 def generate_pointcloud(original_image, depth_image):
     """3Dポイントクラウドデータ生成 - アスペクト比を考慮した座標変換"""
+    # EXIF情報を適用して正しい向きに調整
+    try:
+        original_image = ImageOps.exif_transpose(original_image)
+        depth_image = ImageOps.exif_transpose(depth_image)
+        logger.info(f"Applied EXIF transpose to images for pointcloud generation")
+    except Exception as exif_error:
+        logger.warning(f"EXIF transpose failed in pointcloud generation: {exif_error}")
+    
     w, h = original_image.size
     downsample_factor = 12
     points = []
