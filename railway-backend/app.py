@@ -697,15 +697,17 @@ def generate_pointcloud(original_image, depth_image):
     
     for y in range(0, h, downsample_factor):
         for x in range(0, w, downsample_factor):
-            # CRITICAL FIX: PIL load() uses (x, y) coordinate system
-            depth_val = depth_pixels[x, y] / 255.0
-            x_norm = (x / w - 0.5) * 1.6
-            y_norm = (y / h - 0.5) * 1.6
-            z_norm = depth_val * 2 - 1
-            
-            points.append([x_norm, y_norm, z_norm])
-            r, g, b = orig_pixels[x, y]
-            colors.append([r/255.0, g/255.0, b/255.0])
+            # Ensure we don't go out of bounds
+            if x < w and y < h:
+                # PIL load() uses (x, y) coordinate system
+                depth_val = depth_pixels[x, y] / 255.0
+                x_norm = (x / w - 0.5) * 1.6
+                y_norm = (y / h - 0.5) * 1.6
+                z_norm = depth_val * 2 - 1
+                
+                points.append([x_norm, y_norm, z_norm])
+                r, g, b = orig_pixels[x, y]
+                colors.append([r/255.0, g/255.0, b/255.0])
     
     return {
         "points": points,
