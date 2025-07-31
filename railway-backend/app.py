@@ -719,18 +719,11 @@ async def predict_depth(
             if image.format not in ['JPEG', 'PNG', 'BMP', 'TIFF', 'WEBP']:
                 logger.warning(f"Unusual image format: {image.format}")
             
-            # CRITICAL: Completely disable EXIF orientation processing
-            # Frontend has already handled EXIF rotation, so we must preserve exact image data
+            # IMPORTANT: Do NOT apply EXIF orientation to prevent unwanted rotation
+            # Keep the image exactly as uploaded without any automatic rotation
             logger.info(f"Original image before convert: {image.size}, mode: {image.mode}, format: {image.format}")
-            
-            # Method 1: Try to disable EXIF processing at PIL level
-            # Remove EXIF data entirely to prevent any automatic rotation
-            data = list(image.getdata())
-            image_without_exif = Image.new(image.mode, image.size)
-            image_without_exif.putdata(data)
-            
-            image = image_without_exif.convert('RGB')
-            logger.info(f"After EXIF-free RGB conversion: {image.size}")
+            image = image.convert('RGB')
+            logger.info(f"After RGB conversion: {image.size}")
         except Exception as img_error:
             logger.error(f"Image loading error: {img_error}")
             raise ValueError(f"Cannot process image file: {str(img_error)}")
