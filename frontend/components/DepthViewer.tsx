@@ -293,6 +293,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             <div className="flex items-center mb-2">
               <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高精度</span>
               <div>
+                <span className="font-medium text-gray-900 mr-2">DPT-Large</span>
                 <span className="text-xs text-gray-500">(Intel/dpt-large)</span>
               </div>
             </div>
@@ -334,6 +335,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             <div className="flex items-center mb-2">
               <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium mr-3">高速</span>
               <div>
+                <span className="font-medium text-gray-900 mr-2">MiDaS</span>
                 <span className="text-xs text-gray-500">(Intel/dpt-hybrid-midas)</span>
               </div>
             </div>
@@ -375,6 +377,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
             <div className="flex items-center mb-2">
               <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium mr-3">汎用</span>
               <div>
+                <span className="font-medium text-gray-900 mr-2">Depth Anything</span>
                 <span className="text-xs text-gray-500">(LiheYoung/depth-anything-small)</span>
               </div>
             </div>
