@@ -58,80 +58,86 @@ export default function Home() {
       setProcessingProgress(25)
       setProcessingStatus('深度推定を実行中...')
       
-      // Try Railway API first, fallback to mock
-      try {
-        console.log('Trying Railway API...')
-        console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
-        
-        // ファイルアップロード用のFormData作成
-        const formData = new FormData()
-        
-        // Base64をBlobに変換（元のMIMEタイプを保持）
-        const mimeMatch = imageDataUrl.match(/data:([^;]+);/)
-        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
-        console.log('Original image MIME type:', mimeType)
-        
-        const byteCharacters = atob(imageDataUrl.split(',')[1])
-        const byteNumbers = new Array(byteCharacters.length)
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i)
-        }
-        const byteArray = new Uint8Array(byteNumbers)
-        const blob = new Blob([byteArray], { type: mimeType })
-        
-        formData.append('file', blob, 'image.jpg')
-        formData.append('model', selectedModel)
-        
-        // 30秒タイムアウト設定（深度推定は時間がかかる場合がある）
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 30000)
-        
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/predict`, {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal
-        })
-        
-        clearTimeout(timeoutId)
-        setProcessingProgress(75)
-        setProcessingStatus('結果を処理中...')
+      // Use Railway API only - no fallback
+      console.log('Using Railway API exclusively...')
+      console.log('Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL)
+      
+      if (!process.env.NEXT_PUBLIC_BACKEND_URL) {
+        throw new Error('Backend URL is not configured')
+      }
+      
+      // ファイルアップロード用のFormData作成
+      const formData = new FormData()
+      
+      // Base64をBlobに変換（元のMIMEタイプを保持）
+      const mimeMatch = imageDataUrl.match(/data:([^;]+);/)
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+      console.log('Original image MIME type:', mimeType)
+      
+      const byteCharacters = atob(imageDataUrl.split(',')[1])
+      const byteNumbers = new Array(byteCharacters.length)
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+      }
+      const byteArray = new Uint8Array(byteNumbers)
+      const blob = new Blob([byteArray], { type: mimeType })
+      
+      formData.append('file', blob, 'image.jpg')
+      formData.append('model', selectedModel)
+      
+      // 30秒タイムアウト設定（深度推定は時間がかかる場合がある）
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/predict`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      setProcessingProgress(75)
+      setProcessingStatus('結果を処理中...')
 
-        if (response.ok) {
-          const result = await response.json()
-          console.log('Railway API Response:', result)
-          console.log('PointCloud Data:', result.pointcloudData)
-          
-          if (result.success && result.depthMapUrl) {
-            // Railway APIからの深度マップ
-            const newResult = {
-              depthMapUrl: result.depthMapUrl,
-              originalUrl: result.originalUrl || uploadedImage,
-              success: true,
-              model: result.model || 'Railway-API',
-              resolution: result.resolution || 'unknown',
-              note: result.note,
-              algorithms: result.algorithms,
-              implementation: result.implementation,
-              features: result.features,
-              pointcloudData: result.pointcloudData
-            }
-            setDepthResult(newResult)
-            setDepthResults(prev => ({...prev, [selectedModel]: newResult}))
-            setProcessingProgress(100)
-            setProcessingStatus('完了！')
-            setActiveTab('depth')
-            console.log('✅ Railway API depth estimation successful!')
-            return
-          }
-        }
-        
-        const errorMessage = `Backend API failed: ${response.status} ${response.statusText}`
+      if (!response.ok) {
+        const errorText = await response.text()
+        const errorMessage = `Backend API failed: ${response.status} ${response.statusText}. Details: ${errorText}`
         console.error('Railway API failed:', errorMessage)
         throw new Error(errorMessage)
-      } catch (apiError) {
-        console.error('Railway API error:', apiError)
-        throw apiError  // Re-throw to be handled by outer catch block
       }
+      
+      const result = await response.json()
+      console.log('Railway API Response:', result)
+      console.log('PointCloud Data:', result.pointcloudData)
+      
+      if (!result.success || !result.depthMapUrl) {
+        throw new Error(`Backend API returned invalid result: ${JSON.stringify(result)}`)
+      }
+      
+      // Railway APIからの深度マップ - 成功時のみここに到達
+      console.log('Creating result with model:', result.model)
+      console.log('Selected model was:', selectedModel)
+      
+      const newResult = {
+        depthMapUrl: result.depthMapUrl,
+        originalUrl: result.originalUrl || uploadedImage,
+        success: true,
+        model: result.model || selectedModel || 'Railway-API',  // 確実に本物のモデル名を使用
+        resolution: result.resolution || 'unknown',
+        note: result.note,
+        algorithms: result.algorithms,
+        implementation: result.implementation,
+        features: result.features,
+        pointcloudData: result.pointcloudData
+      }
+      
+      console.log('Final result object:', newResult)
+      setDepthResult(newResult)
+      setDepthResults(prev => ({...prev, [selectedModel]: newResult}))
+      setProcessingProgress(100)
+      setProcessingStatus('完了！')
+      setActiveTab('depth')
+      console.log('✅ Railway API depth estimation successful!')
     } catch (error) {
       console.error('Depth estimation failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -216,13 +222,14 @@ export default function Home() {
 
           if (response.ok) {
             const result = await response.json()
+            console.log(`Compare mode - ${model} result:`, result)
             
             if (result.success && result.depthMapUrl) {
-              newResults[model] = {
+              const modelResult = {
                 depthMapUrl: result.depthMapUrl,
                 originalUrl: result.originalUrl || uploadedImage,
                 success: true,
-                model: result.model || model,
+                model: result.model || model,  // 確実にモデル名を保持
                 resolution: result.resolution || 'unknown',
                 note: result.note,
                 algorithms: result.algorithms,
@@ -230,7 +237,14 @@ export default function Home() {
                 features: result.features,
                 pointcloudData: result.pointcloudData
               }
+              console.log(`Compare mode - ${model} final result:`, modelResult)
+              newResults[model] = modelResult
+            } else {
+              console.error(`Compare mode - ${model} returned invalid result:`, result)
             }
+          } else {
+            const errorText = await response.text()
+            console.error(`Compare mode - ${model} failed:`, response.status, errorText)
           }
         } catch (error) {
           console.error(`Failed to process with ${model}:`, error)
