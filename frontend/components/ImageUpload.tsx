@@ -1,4 +1,5 @@
 import { useState, useRef, DragEvent } from 'react'
+import { getOrientedImageUrl } from '@/lib/imageUtils'
 
 interface ImageUploadProps {
   onImageUpload: (imageUrl: string) => void
@@ -42,7 +43,7 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
     }
   }
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File) => {
     // Validate file type
     if (!file.type.startsWith('image/')) {
       alert('画像ファイルを選択してください')
@@ -55,29 +56,19 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
       return
     }
 
-    // Create file reader
-    const reader = new FileReader()
+    setUploadProgress(10)
     
-    reader.onloadstart = () => setUploadProgress(0)
-    reader.onprogress = (e) => {
-      if (e.lengthComputable) {
-        setUploadProgress((e.loaded / e.total) * 100)
-      }
-    }
-    
-    reader.onload = (e) => {
+    try {
+      // EXIF情報を考慮して画像を正しい向きで読み込む
+      const orientedImageUrl = await getOrientedImageUrl(file)
       setUploadProgress(100)
-      const result = e.target?.result as string
-      onImageUpload(result)
+      onImageUpload(orientedImageUrl)
       setTimeout(() => setUploadProgress(0), 1000)
-    }
-    
-    reader.onerror = () => {
+    } catch (error) {
+      console.error('画像の読み込みエラー:', error)
       alert('ファイルの読み込みに失敗しました')
       setUploadProgress(0)
     }
-    
-    reader.readAsDataURL(file)
   }
 
   const handleSampleSelect = (sampleUrl: string) => {
