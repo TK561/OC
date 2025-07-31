@@ -781,10 +781,17 @@ async def predict_depth(
             if image.format not in ['JPEG', 'PNG', 'BMP', 'TIFF', 'WEBP']:
                 logger.warning(f"Unusual image format: {image.format}")
             
-            # IMPORTANT: Frontend already applied EXIF orientation correction
-            # The image we receive is already in the correct orientation
-            # Just convert to RGB without any additional rotation
-            logger.info(f"Image received from frontend (already EXIF-corrected): {image.size}, mode: {image.mode}, format: {image.format}")
+            # Apply EXIF orientation correction in backend as well
+            # This ensures proper orientation regardless of frontend processing
+            logger.info(f"Image received: {image.size}, mode: {image.mode}, format: {image.format}")
+            
+            # Apply EXIF orientation correction
+            try:
+                image = ImageOps.exif_transpose(image)
+                logger.info(f"After EXIF transpose: {image.size}")
+            except Exception as exif_error:
+                logger.warning(f"EXIF transpose failed: {exif_error}")
+            
             image = image.convert('RGB')
             logger.info(f"After RGB conversion: {image.size}")
             
