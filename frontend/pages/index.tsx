@@ -495,7 +495,7 @@ export default function Home() {
                     <div className="text-center text-gray-500">
                       <p className="text-lg">画像をアップロードしてください</p>
                       <p className="text-sm mt-2">
-                        JPEG、PNG、WebP形式に対応しています
+                        JPEG、PNG、WebP、HEIC、RAW等の画像形式に対応しています
                       </p>
                     </div>
                   )}

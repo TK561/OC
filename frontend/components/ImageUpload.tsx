@@ -44,9 +44,18 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
   }
 
   const handleFileUpload = async (file: File) => {
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('画像ファイルを選択してください')
+    // Validate file type - support all common image formats
+    const isImage = file.type.startsWith('image/')
+    const fileName = file.name.toLowerCase()
+    const supportedExtensions = [
+      '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif',
+      '.heic', '.heif', '.avif', '.svg', '.ico', '.jfif', '.pjpeg', '.pjp',
+      '.raw', '.cr2', '.nef', '.arw', '.dng', '.orf', '.rw2', '.pef', '.srw'
+    ]
+    const hasValidExtension = supportedExtensions.some(ext => fileName.endsWith(ext))
+    
+    if (!isImage && !hasValidExtension) {
+      alert('対応していない画像形式です。JPEG、PNG、WebP、HEIC等の画像ファイルを選択してください。')
       return
     }
 
@@ -66,7 +75,14 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
       setTimeout(() => setUploadProgress(0), 1000)
     } catch (error) {
       console.error('画像の読み込みエラー:', error)
-      alert('ファイルの読み込みに失敗しました')
+      const specialFormats = ['.heic', '.heif', '.raw', '.cr2', '.nef', '.arw', '.dng', '.orf', '.rw2', '.pef', '.srw']
+      const isSpecialFormat = specialFormats.some(ext => fileName.endsWith(ext))
+      
+      if (isSpecialFormat) {
+        alert('この画像形式の読み込みに失敗しました。JPEGまたはPNG形式に変換してからお試しください。')
+      } else {
+        alert('ファイルの読み込みに失敗しました')
+      }
       setUploadProgress(0)
     }
   }
@@ -125,7 +141,7 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
             </p>
           </div>
           <p className="text-xs text-gray-500">
-            JPEG, PNG, WebP (最大50MB)
+            JPEG, PNG, WebP, HEIC, RAW等 (最大50MB)
           </p>
         </div>
       </div>
@@ -146,7 +162,7 @@ export default function ImageUpload({ onImageUpload }: ImageUploadProps) {
         name="file-input"
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.heic,.heif,.avif,.raw,.cr2,.nef,.arw,.dng,.orf,.rw2,.pef,.srw"
         onChange={handleFileSelect}
         className="hidden"
         title="画像ファイル選択"
