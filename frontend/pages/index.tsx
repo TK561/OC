@@ -545,7 +545,7 @@ export default function Home() {
 
                     {/* Model Details */}
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h3 className="text-sm font-medium text-blue-900 mb-3">🔍 それぞれの特徴</h3>
+                      <h3 className="text-sm font-medium text-blue-900 mb-3">📋 モデル一覧</h3>
                       <div className="space-y-3 text-sm">
                         <div className="bg-white rounded p-3 border border-blue-100">
                           <div className="flex items-center mb-2">
