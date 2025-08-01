@@ -215,58 +215,6 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         </div>
       </div>
 
-      {/* Feature Overview */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-emerald-900 mb-3">🎆 深度推定機能でできること</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div className="space-y-2">
-            <div className="flex items-start">
-              <span className="text-emerald-600 mr-2">📷</span>
-              <div>
-                <strong className="text-emerald-800">単一画像から深度情報を抽出</strong>
-                <p className="text-emerald-700 text-xs mt-1">特別な機材や複数のカメラがなくても、1枚の写真だけで立体構造を解析</p>
-              </div>
-            </div>
-            <div className="flex items-start">
-              <span className="text-emerald-600 mr-2">🎨</span>
-              <div>
-                <strong className="text-emerald-800">視覚的な深度マップを生成</strong>
-                <p className="text-emerald-700 text-xs mt-1">白（近）から黒（遠）のグラデーションで、直感的に距離関係を理解</p>
-              </div>
-            </div>
-            <div className="flex items-start">
-              <span className="text-emerald-600 mr-2">🔄</span>
-              <div>
-                <strong className="text-emerald-800">元画像との比較表示</strong>
-                <p className="text-emerald-700 text-xs mt-1">チェックボックで元画像と深度マップを並べて表示、結果を簡単に検証</p>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-start">
-              <span className="text-emerald-600 mr-2">💾</span>
-              <div>
-                <strong className="text-emerald-800">高品質な結果を保存</strong>
-                <p className="text-emerald-700 text-xs mt-1">生成された深度マップをPNG形式でダウンロード、他のアプリで活用可能</p>
-              </div>
-            </div>
-            <div className="flex items-start">
-              <span className="text-emerald-600 mr-2">⚙️</span>
-              <div>
-                <strong className="text-emerald-800">3種類の高性能モデル</strong>
-                <p className="text-emerald-700 text-xs mt-1">精度・速度・汎用性の違うモデルから、目的に合わせて選択</p>
-              </div>
-            </div>
-            <div className="flex items-start">
-              <span className="text-emerald-600 mr-2">🚀</span>
-              <div>
-                <strong className="text-emerald-800">クラウドベースで高速処理</strong>
-                <p className="text-emerald-700 text-xs mt-1">強力なGPUサーバーで処理するため、個人パソコンでは難しい高品質解析を実現</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Color Map Legend */}
       <div className="bg-gray-50 rounded-lg p-4">
