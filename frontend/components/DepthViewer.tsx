@@ -317,8 +317,11 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <p className="text-gray-600 mb-3">
                 <strong>Self-Attention機構</strong> - 各パッチが画像全体の他のすべてのパッチとの関係を同時に計算。例えば、人の顔のパッチが髪の毛や背景のパッチとどう関連するかを理解し、文脈に基づいた深度推定を実現。
               </p>
-              <p className="text-gray-600 mb-2">
+              <p className="text-gray-600 mb-3">
                 <strong>Dense Prediction構造</strong> - 画像の各ピクセルに対して高精度な深度値を予測。多層のTransformerエンコーダーで特徴を抽出し、デコーダーで深度マップを生成します。
+              </p>
+              <p className="text-gray-600 mb-2">
+                <strong>📊 学習データ</strong> - 約130万枚の画像で学習。NYU Depth V2、KITTI、Cityscapesなど高品質な深度データセットを使用し、高精度な境界検出能力を獲得。
               </p>
               <p className="font-medium text-gray-800 mb-2">🎯 検出方法</p>
               <p className="text-gray-600">
@@ -373,8 +376,11 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <p className="text-gray-600 mb-3">
                 <strong>混合データセット学習</strong> - 屋内・屋外・映画など異なる特性を持つ12種類のデータセットで同時学習。各データセットの深度範囲や分布の違いを正規化し、統一的な深度表現を獲得。
               </p>
-              <p className="text-gray-600 mb-2">
+              <p className="text-gray-600 mb-3">
                 <strong>逆深度パラメータ化</strong> - 通常の深度値ではなく逆深度（1/深度）を予測することで、遠距離の深度推定精度を向上。無限遠での数値安定性を確保し、より自然な深度勾配を実現。
+              </p>
+              <p className="text-gray-600 mb-2">
+                <strong>📊 学習データ</strong> - 12種類のデータセット、約500万枚の画像で学習。屋内・屋外・映画・ゲームなど多様なシーンから滑らかな深度変化パターンを学習。
               </p>
               <p className="font-medium text-gray-800 mb-2">🎯 検出方法</p>
               <p className="text-gray-600">
@@ -429,8 +435,11 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
               <p className="text-gray-600 mb-3">
                 <strong>スケール不変深度学習</strong> - 絶対深度ではなく相対深度関係を学習。アフィン不変損失関数により、カメラパラメータに依存しない汎用的な深度推定を実現。任意のスケールの画像に対応可能。
               </p>
-              <p className="text-gray-600 mb-2">
+              <p className="text-gray-600 mb-3">
                 <strong>マルチドメイン適応</strong> - 実写、CG、絵画、スケッチなど多様な画像ドメインで学習。ドメイン敵対的学習により、画風や撮影条件の違いに頑健な特徴表現を獲得し、未知ドメインへの汎化性能を向上。
+              </p>
+              <p className="text-gray-600 mb-2">
+                <strong>📊 学習データ</strong> - 1400万枚の未ラベル画像で自己教師学習。実写・CG・絵画・スケッチなど多様なドメイン、Hypersim・Virtual KITTI・NYU・KITTIなど62のデータセットを統合。
               </p>
               <p className="font-medium text-gray-800 mb-2">🎯 検出方法</p>
               <p className="text-gray-600">
