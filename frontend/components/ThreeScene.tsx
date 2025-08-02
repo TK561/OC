@@ -107,7 +107,7 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
       const scaleX = baseScale
       const scaleY = baseScale
 
-      // 3D → 2D投影
+      // 3D → 2D投影（改善された深度処理）
       points.forEach((point: number[], index: number) => {
         const [x, y, z] = point
         
@@ -125,14 +125,17 @@ export default function ThreeScene({ originalImage, depthResult, settings }: Thr
         const rotatedY = y * cosX - rotatedZ * sinX
         const finalZ = y * sinX + rotatedZ * cosX
         
-        // 透視投影 - 全体が収まるように調整
-        const perspective = 5.0  // 透視効果を弱めて全体を表示
-        const depth = Math.max(0.1, perspective - finalZ)  // ゼロ除算防止
+        // 改善された透視投影（Z軸の深度を正しく処理）
+        const perspective = 4.0  // 透視効果を調整
+        // Z値の正しい解釈: 正の値=手前、負の値=奥
+        const adjustedZ = finalZ * 1.5  // Z軸のスケールを強化
+        const depth = Math.max(0.1, perspective + adjustedZ)  // 正しい深度計算
         const projectedX = centerX + (rotatedX * scaleX) / depth
         const projectedY = centerY + (rotatedY * scaleY) / depth
         
         // 深度による点サイズ - より自然なサイズ変化
-        const pointSize = Math.max(0.8, settings.pointSize * 10 / depth)  // 最小サイズを0.8に
+        const basePointSize = settings.pointSize * 8
+        const pointSize = Math.max(0.5, basePointSize / Math.sqrt(depth))  // 平方根で緩やかな変化
         
         // 色設定
         const color = colors[index]
