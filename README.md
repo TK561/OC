@@ -1,40 +1,63 @@
-# 深度推定・3D可視化アプリ
+# 深度推定・エッジ検出画像処理アプリ
 
-GitHub実装に基づいたDPT-Large、MiDaS、Depth Anything V2による深度推定と3D可視化アプリケーション。
+DPT-Large、MiDaS、Depth Anythingによる深度推定とCannyエッジ検出を組み合わせた高度な画像処理アプリケーション。
 
-## ✨ 特徴
+## ✨ 新機能
+
+- **エッジ検出と深度推定の融合**
+  - Cannyエッジ検出器による精密なエッジ抽出
+  - 深度情報とエッジ情報の合成
+  - 純粋に深度に基づいた白黒グラデーション生成
 
 - **複数の深度推定モデル**
-  - DPT-Large (Intel) - 高精度深度推定
-  - MiDaS v3.1 (Intel) - 高速でバランスの良い性能
-  - Depth Anything V2 (Small/Base/Large) - 最新のTransformerベース
+  - Intel/dpt-large - 最高精度の深度推定
+  - Intel/dpt-hybrid-midas - バランス重視
+  - LiheYoung/depth-anything-small-hf - 軽量高速（推奨）
+
+- **高度な画像処理**
+  - 深度マップの反転・調整
+  - マスク合成（乗算・条件付き・アルファブレンド）
+  - ガンマ補正・ガウシアンブラー後処理
 
 - **リアルタイム3D可視化**
   - ポイントクラウド生成
   - インタラクティブな3D表示
   - 回転・ズーム操作
 
-- **正確な深度表現**
-  - 白=近い、黒=遠い（GitHubの実装に準拠）
-  - 段階的なグラデーション変化
-  - 滑らかな深度マップ
-
 ## 🏗️ アーキテクチャ
 
 ```
-├── backend/           # FastAPI バックエンド
-│   ├── app/
-│   │   ├── models/    # 深度推定モデル
-│   │   ├── routers/   # API エンドポイント
-│   │   └── utils/     # ユーティリティ
-│   └── requirements_railway.txt
-├── frontend/          # Next.js フロントエンド
-│   ├── components/    # React コンポーネント
-│   ├── pages/         # ページ
-│   └── lib/           # ライブラリ
-├── railway-backend/   # Railway軽量版
-└── docs/             # ドキュメント
+├── backend/              # FastAPI バックエンド
+│   ├── app.py           # メインアプリケーション
+│   ├── requirements.txt # Python依存関係
+│   ├── nixpacks.toml    # Railway設定
+│   ├── Depth-Anything-V2/  # 深度推定モデル実装
+│   └── ml-depth-pro/    # Apple DepthPro実装
+├── frontend/            # Next.js フロントエンド
+│   ├── components/      # React コンポーネント
+│   ├── pages/          # ページ
+│   ├── lib/            # ライブラリ
+│   └── public/         # 静的ファイル
+├── docs/               # ドキュメント
+└── scripts/            # 分析・テストスクリプト
 ```
+
+## 🔌 APIエンドポイント
+
+### 基本深度推定
+- `POST /api/predict` - 標準の深度推定
+- `GET /health` - ヘルスチェック
+
+### 新機能：エッジ検出+深度処理
+- `POST /api/depth-edge-processing` - エッジ検出と深度推定の融合処理
+
+#### パラメータ
+- `model`: 深度推定モデル選択
+- `edge_low_threshold`: Cannyエッジ検出低閾値 (デフォルト: 50)
+- `edge_high_threshold`: Cannyエッジ検出高閾値 (デフォルト: 150)
+- `invert_depth`: 深度マップ反転 (デフォルト: true)
+- `depth_gamma`: 深度ガンマ補正 (デフォルト: 1.0)
+- `composition_mode`: 合成方法 ("multiply", "conditional", "alpha_blend")
 
 ## 技術スタック
 
@@ -46,10 +69,17 @@ GitHub実装に基づいたDPT-Large、MiDaS、Depth Anything V2による深度�
 - Vercel (デプロイ)
 
 ### バックエンド
-- FastAPI
-- PyTorch + Hugging Face Transformers
-- OpenCV
-- Railway/Render (デプロイ)
+- FastAPI (Python Web API)
+- OpenCV / PIL (画像処理)
+- NumPy / SciPy (数値計算)
+- Pillow (画像操作)
+- Railway (デプロイ)
+
+### 画像処理アルゴリズム
+- Cannyエッジ検出
+- 深度推定（DPT、MiDaS、DepthAnything）
+- ガンマ補正・コントラスト調整
+- マスク合成・ブレンディング
 
 ## 開発環境セットアップ
 
@@ -79,7 +109,9 @@ source venv/bin/activate  # Windows: venv\\Scripts\\activate
 pip install -r requirements.txt
 
 # 開発サーバー起動
-uvicorn app.main:app --reload
+python app.py
+# または
+uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ## 環境変数

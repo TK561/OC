@@ -3,7 +3,7 @@ import ImageUpload from '@/components/ImageUpload'
 import DepthViewer from '@/components/DepthViewer'
 import ThreeScene from '@/components/ThreeScene'
 import ControlPanel from '@/components/ControlPanel'
-import { DepthEstimationResponse, ViewerSettings } from '@/shared/types'
+import { DepthEstimationResponse, ViewerSettings, EdgeDepthProcessingResponse } from '@/shared/types'
 
 export default function Home() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
@@ -30,6 +30,66 @@ export default function Home() {
     setCompareMode(false)
     setProcessingProgress(0)
     setProcessingStatus('')
+  }
+
+  const processEdgeDepthEnhancement = async (originalImageUrl: string, model: string): Promise<DepthEstimationResponse | null> => {
+    try {
+      console.log(`Starting edge-depth processing for model: ${model}`)
+      
+      // 画像をBlobに変換
+      const response = await fetch(originalImageUrl)
+      const blob = await response.blob()
+      
+      // FormData作成
+      const formData = new FormData()
+      formData.append('file', blob, 'image.jpg')
+      formData.append('model', model)
+      formData.append('edge_low_threshold', '50')
+      formData.append('edge_high_threshold', '150')
+      formData.append('invert_depth', 'true')
+      formData.append('depth_gamma', '1.0')
+      formData.append('depth_contrast', '1.0')
+      formData.append('composition_mode', 'multiply')
+      formData.append('post_gamma', '1.0')
+      formData.append('post_blur', '0.0')
+      
+      const edgeResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/depth-edge-processing`, {
+        method: 'POST',
+        body: formData,
+      })
+      
+      if (!edgeResponse.ok) {
+        console.error(`Edge processing failed for ${model}:`, edgeResponse.status)
+        return null
+      }
+      
+      const edgeResult: EdgeDepthProcessingResponse = await edgeResponse.json()
+      console.log(`Edge processing completed for ${model}:`, edgeResult)
+      
+      if (!edgeResult.success) {
+        console.error(`Edge processing returned failure for ${model}`)
+        return null
+      }
+      
+      // DepthEstimationResponse形式に変換（最終処理画像を使用）
+      const enhancedResult: DepthEstimationResponse = {
+        depthMapUrl: edgeResult.finalImageUrl, // エッジ処理済みの最終画像
+        originalUrl: edgeResult.originalUrl,
+        success: true,
+        model: edgeResult.processing_info.model,
+        resolution: edgeResult.resolution,
+        note: 'Enhanced with edge detection and depth processing',
+        algorithms: ['Edge Detection', 'Depth Enhancement', 'Gradient Processing'],
+        implementation: 'Custom Edge-Depth Pipeline',
+        features: ['Canny Edge Detection', 'Depth Inversion', 'Mask Composition']
+      }
+      
+      return enhancedResult
+      
+    } catch (error) {
+      console.error(`Edge processing error for ${model}:`, error)
+      return null
+    }
   }
 
   const handleDepthEstimation = async () => {
@@ -96,8 +156,8 @@ export default function Home() {
       })
       
       clearTimeout(timeoutId)
-      setProcessingProgress(75)
-      setProcessingStatus('結果を処理中...')
+      setProcessingProgress(50)
+      setProcessingStatus('深度推定完了、エッジ処理中...')
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -108,36 +168,53 @@ export default function Home() {
       
       const result = await response.json()
       console.log('Railway API Response:', result)
-      console.log('PointCloud Data:', result.pointcloudData)
       
       if (!result.success || !result.depthMapUrl) {
         throw new Error(`Backend API returned invalid result: ${JSON.stringify(result)}`)
       }
       
-      // Railway APIからの深度マップ - 成功時のみここに到達
-      console.log('Creating result with model:', result.model)
-      console.log('Selected model was:', selectedModel)
+      // エッジ処理を実行
+      setProcessingProgress(75)
+      setProcessingStatus('エッジ検出+深度処理実行中...')
       
-      const newResult = {
-        depthMapUrl: result.depthMapUrl,
-        originalUrl: result.originalUrl || uploadedImage,
-        success: true,
-        model: result.model || selectedModel || 'Railway-API',  // 確実に本物のモデル名を使用
-        resolution: result.resolution || 'unknown',
-        note: result.note,
-        algorithms: result.algorithms,
-        implementation: result.implementation,
-        features: result.features,
-        pointcloudData: result.pointcloudData
+      const enhancedResult = await processEdgeDepthEnhancement(uploadedImage, selectedModel)
+      
+      if (enhancedResult) {
+        // エッジ処理済み結果を使用
+        const finalResult = {
+          ...enhancedResult,
+          pointcloudData: result.pointcloudData // 元の3Dデータは保持
+        }
+        
+        console.log('Enhanced result with edge processing:', finalResult)
+        setDepthResult(finalResult)
+        setDepthResults(prev => ({...prev, [selectedModel]: finalResult}))
+        setProcessingProgress(100)
+        setProcessingStatus('エッジ処理完了！')
+      } else {
+        // エッジ処理に失敗した場合は元の結果を使用
+        console.warn('Edge processing failed, using original depth result')
+        const newResult = {
+          depthMapUrl: result.depthMapUrl,
+          originalUrl: result.originalUrl || uploadedImage,
+          success: true,
+          model: result.model || selectedModel || 'Railway-API',
+          resolution: result.resolution || 'unknown',
+          note: result.note,
+          algorithms: result.algorithms,
+          implementation: result.implementation,
+          features: result.features,
+          pointcloudData: result.pointcloudData
+        }
+        
+        setDepthResult(newResult)
+        setDepthResults(prev => ({...prev, [selectedModel]: newResult}))
+        setProcessingProgress(100)
+        setProcessingStatus('完了！')
       }
       
-      console.log('Final result object:', newResult)
-      setDepthResult(newResult)
-      setDepthResults(prev => ({...prev, [selectedModel]: newResult}))
-      setProcessingProgress(100)
-      setProcessingStatus('完了！')
       setActiveTab('depth')
-      console.log('✅ Railway API depth estimation successful!')
+      console.log('✅ Depth estimation with edge enhancement completed!')
     } catch (error) {
       console.error('Depth estimation failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -225,20 +302,34 @@ export default function Home() {
             console.log(`Compare mode - ${model} result:`, result)
             
             if (result.success && result.depthMapUrl) {
-              const modelResult = {
-                depthMapUrl: result.depthMapUrl,
-                originalUrl: result.originalUrl || uploadedImage,
-                success: true,
-                model: result.model || model,  // 確実にモデル名を保持
-                resolution: result.resolution || 'unknown',
-                note: result.note,
-                algorithms: result.algorithms,
-                implementation: result.implementation,
-                features: result.features,
-                pointcloudData: result.pointcloudData
+              // エッジ処理を実行
+              const enhancedResult = await processEdgeDepthEnhancement(uploadedImage, model)
+              
+              if (enhancedResult) {
+                // エッジ処理済み結果を使用
+                const modelResult = {
+                  ...enhancedResult,
+                  pointcloudData: result.pointcloudData // 元の3Dデータは保持
+                }
+                console.log(`Compare mode - ${model} enhanced result:`, modelResult)
+                newResults[model] = modelResult
+              } else {
+                // エッジ処理に失敗した場合は元の結果を使用
+                const modelResult = {
+                  depthMapUrl: result.depthMapUrl,
+                  originalUrl: result.originalUrl || uploadedImage,
+                  success: true,
+                  model: result.model || model,
+                  resolution: result.resolution || 'unknown',
+                  note: result.note,
+                  algorithms: result.algorithms,
+                  implementation: result.implementation,
+                  features: result.features,
+                  pointcloudData: result.pointcloudData
+                }
+                console.log(`Compare mode - ${model} original result:`, modelResult)
+                newResults[model] = modelResult
               }
-              console.log(`Compare mode - ${model} final result:`, modelResult)
-              newResults[model] = modelResult
             } else {
               console.error(`Compare mode - ${model} returned invalid result:`, result)
             }
@@ -285,7 +376,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <h1 className="text-2xl font-bold text-gray-900">
-              深度推定・3D可視化アプリ
+              深度推定・エッジ検出・3D可視化アプリ
             </h1>
             <div className="flex items-center space-x-4">
               <select
