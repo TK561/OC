@@ -19,14 +19,10 @@ except ImportError:
     import warnings
     warnings.warn("OpenCV not available, using fallback edge detection")
 
-try:
-    import torch
-    from transformers import DPTImageProcessor, DPTForDepthEstimation, AutoImageProcessor, AutoModelForDepthEstimation
-    TRANSFORMERS_AVAILABLE = True
-    logger.info("Transformers and PyTorch available for depth estimation")
-except ImportError:
-    TRANSFORMERS_AVAILABLE = False
-    logger.warning("Transformers not available, using fallback depth estimation")
+# HuggingFaceモデルはRailwayのイメージサイズ制限のため無効化
+# 将来的にはより大きなプランで有効化可能
+TRANSFORMERS_AVAILABLE = False
+logger.info("HuggingFace models disabled due to Railway image size limits - using optimized fallback")
 
 app = FastAPI(title="DPT/MiDaS/DepthAnything Lightweight API")
 
@@ -1353,11 +1349,9 @@ async def clear_cache():
     model_cache.clear()
     processor_cache.clear()
     
-    # メモリ解放を促進
-    if TRANSFORMERS_AVAILABLE:
-        import torch
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+    # メモリ解放を促進（軽量版では標準的なガベージコレクション）
+    import gc
+    gc.collect()
     
     return {"success": True, "message": "Model cache cleared and memory freed"}
 
