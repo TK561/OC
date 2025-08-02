@@ -109,7 +109,8 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     
     # 1. 主要物体検出（明度+コントラストベース）
     # 明るい部分や高コントラスト部分を主要物体として識別
-    brightness_mask = gray_array > 0.3  # 明度閾値
+    # より広い範囲で深度変化を検出
+    brightness_mask = gray_array > 0.2  # 閾値を下げて感度を上げる
     
     # 2. エッジ検出による物体境界
     # 隣接ピクセルとの差分でエッジを検出
@@ -144,11 +145,15 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
         pass
     
     # 6. 深度マップ生成
-    # 参考画像通り：物体=純白(255)、背景=純黒(0)、境界=グラデーション
-    depth_map = np.zeros_like(gray_array)
+    # 基本的な深度情報として明度を使用し、物体マスクで強化
+    depth_map = gray_array.copy()  # 明度ベースの基本深度
     
-    # 物体領域を白に設定
-    depth_map[object_mask] = 1.0
+    # 物体領域を明確に強化
+    depth_map[object_mask] = np.maximum(depth_map[object_mask], 0.7)
+    
+    # より滑らかなグラデーションのため、基本深度も活用
+    # 中央バイアスを深度に反映
+    depth_map = depth_map * 0.7 + center_weight * 0.3
     
     # 境界周辺のグラデーション生成
     # 物体境界から距離に応じてグラデーション
@@ -201,11 +206,21 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     # 正規化と最終調整
     depth_map = np.clip(depth_map, 0, 1)
     
+    # 深度マップの品質向上
+    # 最小値と最大値の範囲を拡張して全範囲を使用
+    if depth_map.max() > depth_map.min():
+        depth_map = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
+    
     # 参考画像により近づけるため、コントラストを強化
     depth_map = np.power(depth_map, 0.8)  # ガンマ補正でコントラスト調整
     
     # [0, 255]にスケール
     depth_map_uint8 = (depth_map * 255).astype(np.uint8)
+    
+    # 最低限の分散を保証
+    if depth_map_uint8.std() < 10:
+        # 分散が小さすぎる場合は人工的にコントラストを強化
+        depth_map_uint8 = np.clip(depth_map_uint8 * 2, 0, 255).astype(np.uint8)
     
     # PIL Imageに変換
     depth_pil = Image.fromarray(depth_map_uint8, mode='L')
@@ -365,7 +380,7 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     
     # 3. 物体マスク生成
     # 明度ベース + エッジベース + 中央バイアス
-    brightness_mask = gray_array > max(threshold, 0.2)
+    brightness_mask = gray_array > max(threshold, 0.15)  # より感度を上げる
     
     # マルチスケールエッジの統合
     combined_edges = np.zeros_like(gray_array)
@@ -410,10 +425,14 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
         logger.warning("SciPy not available for advanced morphology")
     
     # 6. 高品質グラデーション生成
-    depth_map = np.zeros_like(gray_array)
+    # 基本的な深度情報として明度とコントラストを使用
+    depth_map = gray_array * 0.6 + combined_edges * 0.4  # エッジ情報も統合
     
-    # 物体領域を白に設定
-    depth_map[object_mask] = 1.0
+    # 物体領域を強化
+    depth_map[object_mask] = np.maximum(depth_map[object_mask], 0.8)
+    
+    # 中央バイアスを深度に反映
+    depth_map = depth_map * 0.8 + center_weight * 0.2
     
     # DPT風の高精度境界グラデーション
     try:
@@ -465,11 +484,20 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     # 7. 最終調整
     depth_map = np.clip(depth_map, 0, 1)
     
+    # 深度マップの品質向上 - 全範囲を使用
+    if depth_map.max() > depth_map.min():
+        depth_map = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
+    
     # DPT風のコントラスト強化
     depth_map = np.power(depth_map, 0.7)  # より強いコントラスト
     
     # [0, 255]にスケール
     depth_map_uint8 = (depth_map * 255).astype(np.uint8)
+    
+    # 最低限の分散を保証
+    if depth_map_uint8.std() < 15:
+        # DPT-Largeの場合はより強めのコントラスト強化
+        depth_map_uint8 = np.clip(depth_map_uint8 * 2.5, 0, 255).astype(np.uint8)
     
     # PIL Imageに変換
     depth_pil = Image.fromarray(depth_map_uint8, mode='L')
