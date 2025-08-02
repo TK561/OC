@@ -63,6 +63,32 @@ MODEL_CONFIGS = {
 # Model cache
 model_cache = {}
 
+def maximum_filter_simple(arr, size):
+    """簡易最大値フィルタ"""
+    h, w = arr.shape
+    pad = size // 2
+    padded = np.pad(arr, pad, mode='edge')
+    result = np.zeros_like(arr)
+    
+    for i in range(h):
+        for j in range(w):
+            result[i, j] = np.max(padded[i:i+size, j:j+size])
+    
+    return result
+
+def minimum_filter_simple(arr, size):
+    """簡易最小値フィルタ"""
+    h, w = arr.shape
+    pad = size // 2
+    padded = np.pad(arr, pad, mode='edge')
+    result = np.zeros_like(arr)
+    
+    for i in range(h):
+        for j in range(w):
+            result[i, j] = np.min(padded[i:i+size, j:j+size])
+    
+    return result
+
 def midas_inspired_depth(image: Image.Image, original_size=None):
     """MiDaS風深度推定 - OpenCVスタイルのマルチスケール処理"""
     w, h = image.size
@@ -89,33 +115,39 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     # 疑似CNN処理: 複数フィルタでの特徴抽出
     depth_features = []
     
-    # Feature 1: Sobel edge detection (疑似gradient computation)
-    sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
-    sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.float32)
+    # Feature 1: 領域ベースの明度分析（大きな物体の深度推定）
+    # 明るい領域を近く、暗い領域を遠くと仮定
+    brightness_map = gray_array.copy()
+    # ガウシアンブラーで平滑化（細かいテクスチャを除去）
+    smoothed = gaussian_blur_array(brightness_map, radius=5)
+    depth_features.append(smoothed)
     
-    grad_x = scipy_like_filter2d(gray_array, sobel_x)
-    grad_y = scipy_like_filter2d(gray_array, sobel_y)
-    gradient_mag = np.sqrt(grad_x**2 + grad_y**2)
-    depth_features.append(gradient_mag)
+    # Feature 2: テクスチャ密度（詳細な部分は近い傾向）
+    # 高周波成分を抽出し、平滑化
+    detail = gray_array - smoothed
+    texture_density = gaussian_blur_array(np.abs(detail), radius=3)
+    depth_features.append(texture_density)
     
-    # Feature 2: Laplacian of Gaussian (疑似multi-scale processing)
-    laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]], dtype=np.float32)
-    log_response = scipy_like_filter2d(gray_array, laplacian)
-    depth_features.append(np.abs(log_response))
+    # Feature 3: コントラスト領域（高コントラスト = 前景の可能性）
+    # 局所的なコントラストを計算
+    local_max = maximum_filter_simple(gray_array, size=9)
+    local_min = minimum_filter_simple(gray_array, size=9)
+    contrast = local_max - local_min
+    # 平滑化してノイズを減らす
+    contrast_smooth = gaussian_blur_array(contrast, radius=2)
+    depth_features.append(contrast_smooth)
     
-    # Feature 3: Gaussian blur differences (疑似scale-space)
-    blur1 = gaussian_blur_array(gray_array, radius=1)
-    blur2 = gaussian_blur_array(gray_array, radius=3)
-    scale_diff = np.abs(gray_array - blur1) + np.abs(blur1 - blur2)
-    depth_features.append(scale_diff)
-    
-    # Feature 4: Local variance (疑似texture analysis)
-    local_var = compute_local_variance_fast(gray_array, window=5)
-    depth_features.append(local_var)
+    # Feature 4: 中心重み付け（写真の中心は近い物体が多い）
+    center_x, center_y = new_w // 2, new_h // 2
+    y_coords = np.arange(new_h).reshape(-1, 1)
+    x_coords = np.arange(new_w).reshape(1, -1)
+    # 中心からの距離に基づく重み
+    center_weight = np.exp(-((x_coords - center_x)**2 + (y_coords - center_y)**2) / (2 * (min(new_w, new_h) / 3)**2))
+    depth_features.append(center_weight)
     
     # 疑似CNN風の特徴結合
     combined_features = np.zeros_like(gray_array)
-    weights = [0.3, 0.25, 0.25, 0.2]  # 特徴ごとの重み
+    weights = [0.4, 0.2, 0.25, 0.15]  # 明度を重視した重み配分
     
     for i, feature in enumerate(depth_features):
         # 正規化
@@ -307,27 +339,27 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
             scaled_gray = gray_array
             scale_h, scale_w = new_h, new_w
         
-        # 密な予測のための特徴抽出
-        # 1. エッジ特徴（Transformer attentionを模擬）
-        sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
-        sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.float32)
+        # 密な予測のための特徴抽出（深度推定向けに改善）
+        # 1. 大域領域の明度分析
+        large_blur = gaussian_blur_array(scaled_gray, radius=8)
+        medium_blur = gaussian_blur_array(scaled_gray, radius=4)
         
-        grad_x = scipy_like_filter2d(scaled_gray, sobel_x)
-        grad_y = scipy_like_filter2d(scaled_gray, sobel_y)
-        edge_strength = np.sqrt(grad_x**2 + grad_y**2)
+        # マルチスケール分析
+        global_structure = large_blur
+        local_structure = medium_blur - large_blur
         
-        # 2. テクスチャ特徴
-        laplacian = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]], dtype=np.float32)
-        texture_response = np.abs(scipy_like_filter2d(scaled_gray, laplacian))
+        # 2. テクスチャコントラスト（前景・背景の分離）
+        texture_contrast = compute_local_variance_fast(scaled_gray, window=7)
+        texture_smoothed = gaussian_blur_array(texture_contrast, radius=3)
         
         # 特徴を元サイズにリサイズ
         if scale != 1.0:
             edge_strength = np.array(Image.fromarray((edge_strength * 255).astype(np.uint8)).resize((new_w, new_h), Image.Resampling.LANCZOS)) / 255.0
             texture_response = np.array(Image.fromarray((texture_response * 255).astype(np.uint8)).resize((new_w, new_h), Image.Resampling.LANCZOS)) / 255.0
         
-        # スケール重み付け
-        scale_weight = scale
-        combined_feature = (edge_strength * 0.6 + texture_response * 0.4) * scale_weight
+        # Vision Transformer風の特徴統合
+        # 大域構造を重視し、テクスチャ情報を補助的に使用
+        combined_feature = global_structure * 0.5 + local_structure * 0.3 + texture_smoothed * 0.2
         scale_features.append(combined_feature)
     
     # Single scale processing for memory efficiency
@@ -337,18 +369,22 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     height_bias = np.linspace(1.0, 0.4, new_h).reshape(-1, 1)
     height_bias = np.tile(height_bias, (1, new_w))
     
-    # 最終的な逆深度マップ（DPT風）
-    pseudo_inverse_depth = fused_features * height_bias
+    # グラデーション効果を追加（写真の上部は空、下部は地面の傾向）
+    sky_ground_gradient = np.linspace(0.2, 0.8, new_h).reshape(-1, 1)
+    sky_ground_gradient = np.tile(sky_ground_gradient, (1, new_w))
+    
+    # 最終的な深度マップ（DPT風）
+    # 各要素を統合
+    pseudo_depth = fused_features * 0.4 + height_bias * 0.3 + sky_ground_gradient * 0.3
     
     # DPTスタイルの正規化
-    if pseudo_inverse_depth.max() > pseudo_inverse_depth.min():
-        normalized = (pseudo_inverse_depth - pseudo_inverse_depth.min()) / (pseudo_inverse_depth.max() - pseudo_inverse_depth.min())
+    if pseudo_depth.max() > pseudo_depth.min():
+        normalized = (pseudo_depth - pseudo_depth.min()) / (pseudo_depth.max() - pseudo_depth.min())
     else:
-        normalized = pseudo_inverse_depth
+        normalized = pseudo_depth
     
-    # DPTは逆深度を出力するため、大きな値=近い
-    # 白=近い、黒=遠いにするため、値をそのまま使用（MiDaSと同じ処理）
-    inverted_depth = normalized  # DPTも反転不要
+    # 深度値の反転（白=近い、黒=遠い）
+    inverted_depth = 1.0 - normalized
     
     # [0, 255]にスケール
     depth_map = (inverted_depth * 255).astype(np.uint8)
@@ -416,30 +452,33 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     # 正規化の影響を調整
     gray_array = (gray_array + 2.0) / 4.0  # [-2, 2] -> [0, 1]の概算
     
-    # DepthAnything風特徴抽出
-    # 1. エッジ検出
-    sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
-    sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.float32)
+    # DepthAnything風特徴抽出（Foundation Modelとして汎用的な深度推定）
+    # 1. 大域構造の把握
+    coarse_structure = gaussian_blur_array(gray_array, radius=10)
+    fine_structure = gaussian_blur_array(gray_array, radius=3)
+    structure_diff = fine_structure - coarse_structure
     
-    grad_x = scipy_like_filter2d(gray_array, sobel_x)
-    grad_y = scipy_like_filter2d(gray_array, sobel_y)
-    edge_magnitude = np.sqrt(grad_x**2 + grad_y**2)
+    # 2. オブジェクト領域の分離
+    # 明度ベースの領域分割
+    local_mean = gaussian_blur_array(gray_array, radius=5)
+    local_contrast = np.abs(gray_array - local_mean)
+    region_map = gaussian_blur_array(local_contrast, radius=5)
     
-    # 2. ローカル分散（テクスチャ）
-    local_variance = compute_local_variance_fast(gray_array, window=5)
-    
-    # 3. 明度情報
-    brightness = np.clip(gray_array, 0, 1)
+    # 3. コンテキスト認識（シーンタイプに応じた処理）
+    # 上半分が明るければ屋外、暗ければ屋内と仮定
+    upper_brightness = np.mean(gray_array[:new_h//3, :])
+    scene_outdoor_factor = np.clip(upper_brightness * 2, 0, 1)
     
     # 垂直位置（透視手がかり）
     height_factor = np.linspace(0.2, 1.0, new_h).reshape(-1, 1)  # 上=遠い、下=近い
     height_factor = np.tile(height_factor, (1, new_w))
     
-    # DepthAnything風特徴結合
+    # DepthAnything風特徴結合（汎用性を重視）
     depth_features = (
-        0.3 * brightness +                    # 明度
-        0.25 * (1.0 - edge_magnitude) +       # 滑らかな領域=近い
-        0.25 * local_variance +               # テクスチャ
+        0.35 * coarse_structure +             # 大域構造
+        0.25 * region_map +                   # オブジェクト領域
+        0.2 * (1.0 - structure_diff) +        # 滑らかな領域
+        0.2 * scene_outdoor_factor +          # シーン認識
         0.2 * height_factor                   # 垂直位置
     )
     
@@ -449,9 +488,9 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     else:
         normalized_depth = depth_features
     
-    # DepthAnythingは通常深度を出力（小さな値=近い）
-    # 白=近い、黒=遠いにするため、MiDaSと同じように反転処理を適用
-    inverted_depth = 1.0 - normalized_depth  # Depth Anythingも反転処理が必要
+    # DepthAnythingは深度を出力
+    # 白=近い、黒=遠いで表示
+    inverted_depth = 1.0 - normalized_depth
     
     # [0, 255]にスケール
     depth_map = (inverted_depth * 255).astype(np.uint8)
