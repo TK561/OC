@@ -211,16 +211,16 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     if depth_map.max() > depth_map.min():
         depth_map = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
     
-    # 参考画像により近づけるため、コントラストを強化
-    depth_map = np.power(depth_map, 0.8)  # ガンマ補正でコントラスト調整
+    # より自然なコントラストのためガンマ補正を軽減
+    depth_map = np.power(depth_map, 0.9)  # より自然なガンマ補正
     
     # [0, 255]にスケール
     depth_map_uint8 = (depth_map * 255).astype(np.uint8)
     
-    # 最低限の分散を保証
-    if depth_map_uint8.std() < 10:
-        # 分散が小さすぎる場合は人工的にコントラストを強化
-        depth_map_uint8 = np.clip(depth_map_uint8 * 2, 0, 255).astype(np.uint8)
+    # 最低限の分散を保証（より控えめに）
+    if depth_map_uint8.std() < 15:
+        # 分散が小さすぎる場合は軽微にコントラストを強化
+        depth_map_uint8 = np.clip(depth_map_uint8 * 1.3, 0, 255).astype(np.uint8)
     
     # PIL Imageに変換
     depth_pil = Image.fromarray(depth_map_uint8, mode='L')
@@ -488,16 +488,16 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     if depth_map.max() > depth_map.min():
         depth_map = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
     
-    # DPT風のコントラスト強化
-    depth_map = np.power(depth_map, 0.7)  # より強いコントラスト
+    # DPT風のコントラスト強化（軽減）
+    depth_map = np.power(depth_map, 0.85)  # より自然なコントラスト
     
     # [0, 255]にスケール
     depth_map_uint8 = (depth_map * 255).astype(np.uint8)
     
-    # 最低限の分散を保証
-    if depth_map_uint8.std() < 15:
-        # DPT-Largeの場合はより強めのコントラスト強化
-        depth_map_uint8 = np.clip(depth_map_uint8 * 2.5, 0, 255).astype(np.uint8)
+    # 最低限の分散を保証（より控えめに）
+    if depth_map_uint8.std() < 20:
+        # DPT-Largeも軽微なコントラスト強化に変更
+        depth_map_uint8 = np.clip(depth_map_uint8 * 1.5, 0, 255).astype(np.uint8)
     
     # PIL Imageに変換
     depth_pil = Image.fromarray(depth_map_uint8, mode='L')
@@ -903,8 +903,8 @@ def enhanced_depth_processing_pipeline(
     image: Image.Image,
     model_choice: str = "LiheYoung/depth-anything-small-hf",
     invert_depth: bool = True,
-    depth_gamma: float = 0.8,
-    depth_contrast: float = 1.2,
+    depth_gamma: float = 0.9,
+    depth_contrast: float = 1.1,
     smoothing_strength: float = 0.0,
     gradient_enhancement: float = 1.0
 ) -> dict:
@@ -1244,8 +1244,8 @@ async def enhanced_depth_processing(
     file: UploadFile = File(...),
     model: Optional[str] = Form("LiheYoung/depth-anything-small-hf"),
     invert_depth: Optional[bool] = Form(True),
-    depth_gamma: Optional[float] = Form(0.8),
-    depth_contrast: Optional[float] = Form(1.2),
+    depth_gamma: Optional[float] = Form(0.9),
+    depth_contrast: Optional[float] = Form(1.1),
     smoothing_strength: Optional[float] = Form(0.0),
     gradient_enhancement: Optional[float] = Form(1.0)
 ):

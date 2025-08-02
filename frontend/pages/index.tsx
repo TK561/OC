@@ -45,8 +45,8 @@ export default function Home() {
       formData.append('file', blob, 'image.jpg')
       formData.append('model', model)
       formData.append('invert_depth', 'true')
-      formData.append('depth_gamma', '0.8')
-      formData.append('depth_contrast', '1.2')
+      formData.append('depth_gamma', '0.9')
+      formData.append('depth_contrast', '1.1')
       formData.append('smoothing_strength', '0.0')
       formData.append('gradient_enhancement', '1.0')
       
