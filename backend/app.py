@@ -148,13 +148,13 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     else:
         normalized_depth = depth_estimate
     
-    # 深度推定の正しい定義: カメラからの距離
-    # 近い物体 = 小さい距離値 = 白い表示
-    # 遠い物体 = 大きい距離値 = 暗い表示
+    # Intel/dpt-hybrid-midas READMEによる正確な仕様:
+    # "lower values indicate closer objects" = 低い値が近い物体
+    # つまり、近い物体=低い値、遠い物体=高い値
     
-    # MiDaSの逆深度出力を正しい深度表示に変換
-    # 逆深度(1/depth): 近い=大きい値 → 近い=白い表示
-    depth_display = normalized_depth  # 近い物体が高い値（白）に
+    # 表示用に反転: 近い物体を白く表示するため
+    # normalized_depthでは近い=高い値なので、反転が必要
+    depth_display = 1.0 - normalized_depth  # 反転して近い=白に
     
     # [0, 255]にスケール（近い=255/白、遠い=0/黒）
     depth_map = (depth_display * 255).astype(np.uint8)
