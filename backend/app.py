@@ -1103,22 +1103,65 @@ def enhanced_depth_processing_pipeline(
         }
     }
 
-def apply_grayscale_depth_map(depth_image):
-    """深度マップを高品質グレースケール表示（白=近い、黒=遠い）"""
+def apply_colorful_depth_map(depth_image):
+    """深度マップをカラフルなグラデーション表示（色で距離を表現）"""
     w, h = depth_image.size
     
-    # 品質を保持した最小限の処理
-    # 過度なコントラスト強化を避ける
-    depth_enhanced = depth_image.copy()
+    # グレースケール深度マップをnumpy配列に変換
+    depth_array = np.array(depth_image, dtype=np.float32) / 255.0
     
-    # 滑らかなグラデーションを保持するためautocontrastを無効化
-    # depth_enhanced = ImageOps.autocontrast(depth_enhanced, cutoff=2)
+    # カラーマップ作成（距離に応じた色変化）
+    # 近い: 暖色系（赤、オレンジ、黄色）
+    # 遠い: 寒色系（青、紫、黒）
     
-    # 直接RGBに変換（ピクセルループを避けて高速化）
-    # グレースケールをRGBに変換
-    depth_rgb = depth_enhanced.convert('RGB')
+    # RGB各チャンネルの計算
+    red_channel = np.zeros_like(depth_array)
+    green_channel = np.zeros_like(depth_array)
+    blue_channel = np.zeros_like(depth_array)
     
-    return depth_rgb
+    # 5段階のカラーグラデーション
+    # 0.0-0.2: 深い青/紫（最も遠い）
+    mask1 = depth_array <= 0.2
+    red_channel[mask1] = depth_array[mask1] * 0.5  # 微量の赤
+    green_channel[mask1] = 0.0
+    blue_channel[mask1] = 0.3 + depth_array[mask1] * 0.7  # 濃い青
+    
+    # 0.2-0.4: 青から水色
+    mask2 = (depth_array > 0.2) & (depth_array <= 0.4)
+    depth_norm = (depth_array[mask2] - 0.2) / 0.2
+    red_channel[mask2] = 0.0
+    green_channel[mask2] = depth_norm * 0.6  # 青緑成分
+    blue_channel[mask2] = 1.0  # 青をキープ
+    
+    # 0.4-0.6: 水色から緑
+    mask3 = (depth_array > 0.4) & (depth_array <= 0.6)
+    depth_norm = (depth_array[mask3] - 0.4) / 0.2
+    red_channel[mask3] = 0.0
+    green_channel[mask3] = 0.6 + depth_norm * 0.4  # 緑を強化
+    blue_channel[mask3] = 1.0 - depth_norm * 0.5  # 青を減少
+    
+    # 0.6-0.8: 緑から黄色
+    mask4 = (depth_array > 0.6) & (depth_array <= 0.8)
+    depth_norm = (depth_array[mask4] - 0.6) / 0.2
+    red_channel[mask4] = depth_norm * 1.0  # 赤を追加
+    green_channel[mask4] = 1.0  # 緑をキープ
+    blue_channel[mask4] = 0.5 - depth_norm * 0.5  # 青を減少
+    
+    # 0.8-1.0: 黄色から赤（最も近い）
+    mask5 = depth_array > 0.8
+    depth_norm = (depth_array[mask5] - 0.8) / 0.2
+    red_channel[mask5] = 1.0  # 赤をキープ
+    green_channel[mask5] = 1.0 - depth_norm * 0.7  # 緑を減少
+    blue_channel[mask5] = 0.0
+    
+    # RGB配列を結合
+    rgb_array = np.stack([red_channel, green_channel, blue_channel], axis=2)
+    rgb_array = np.clip(rgb_array * 255, 0, 255).astype(np.uint8)
+    
+    # PIL Imageに変換
+    depth_colored = Image.fromarray(rgb_array, mode='RGB')
+    
+    return depth_colored
 
 def generate_pointcloud(original_image, depth_image):
     """3Dポイントクラウドデータ生成 - 正確な深度解釈とZ軸処理"""
@@ -1296,13 +1339,13 @@ async def predict_depth(
             logger.error(f"Depth estimation failed: {depth_error}")
             raise HTTPException(status_code=500, detail=f"Depth estimation failed: {str(depth_error)}")
         
-        # Apply grayscale colormap
+        # Apply colorful depth colormap
         try:
-            depth_colored = apply_grayscale_depth_map(depth_gray)
-            logger.info(f"Colormap applied successfully. Size: {depth_colored.size}")
+            depth_colored = apply_colorful_depth_map(depth_gray)
+            logger.info(f"Colorful depth map applied successfully. Size: {depth_colored.size}")
         except Exception as colormap_error:
-            logger.error(f"Colormap application failed: {colormap_error}")
-            raise HTTPException(status_code=500, detail=f"Colormap processing failed: {str(colormap_error)}")
+            logger.error(f"Colorful depth map application failed: {colormap_error}")
+            raise HTTPException(status_code=500, detail=f"Colorful depth map processing failed: {str(colormap_error)}")
         
         # Generate point cloud using resized image
         try:
