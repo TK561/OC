@@ -115,39 +115,46 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     # 疑似CNN処理: 複数フィルタでの特徴抽出
     depth_features = []
     
-    # Feature 1: 領域ベースの明度分析（大きな物体の深度推定）
-    # 明るい領域を近く、暗い領域を遠くと仮定
-    brightness_map = gray_array.copy()
-    # ガウシアンブラーで平滑化（細かいテクスチャを除去）
-    smoothed = gaussian_blur_array(brightness_map, radius=5)
-    depth_features.append(smoothed)
+    # Feature 1: マルチスケール深度推定
+    # 異なるスケールでのブラー差分を計算
+    blur_small = gaussian_blur_array(gray_array, radius=2)
+    blur_medium = gaussian_blur_array(gray_array, radius=5)
+    blur_large = gaussian_blur_array(gray_array, radius=10)
     
-    # Feature 2: テクスチャ密度（詳細な部分は近い傾向）
-    # 高周波成分を抽出し、平滑化
-    detail = gray_array - smoothed
-    texture_density = gaussian_blur_array(np.abs(detail), radius=3)
-    depth_features.append(texture_density)
+    # スケール間の差分（エッジとテクスチャの強さ）
+    scale_response = np.abs(blur_small - blur_medium) + np.abs(blur_medium - blur_large) * 0.5
+    depth_features.append(scale_response)
     
-    # Feature 3: コントラスト領域（高コントラスト = 前景の可能性）
-    # 局所的なコントラストを計算
-    local_max = maximum_filter_simple(gray_array, size=9)
-    local_min = minimum_filter_simple(gray_array, size=9)
-    contrast = local_max - local_min
-    # 平滑化してノイズを減らす
-    contrast_smooth = gaussian_blur_array(contrast, radius=2)
-    depth_features.append(contrast_smooth)
+    # Feature 2: グラディエント強度（オブジェクトの境界）
+    # Sobelフィルタでエッジを検出し、平滑化
+    sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32) / 8.0
+    sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=np.float32) / 8.0
     
-    # Feature 4: 中心重み付け（写真の中心は近い物体が多い）
-    center_x, center_y = new_w // 2, new_h // 2
-    y_coords = np.arange(new_h).reshape(-1, 1)
-    x_coords = np.arange(new_w).reshape(1, -1)
-    # 中心からの距離に基づく重み
-    center_weight = np.exp(-((x_coords - center_x)**2 + (y_coords - center_y)**2) / (2 * (min(new_w, new_h) / 3)**2))
-    depth_features.append(center_weight)
+    grad_x = scipy_like_filter2d(gray_array, sobel_x)
+    grad_y = scipy_like_filter2d(gray_array, sobel_y)
+    gradient_magnitude = np.sqrt(grad_x**2 + grad_y**2)
+    # エッジの強い部分を平滑化して領域化
+    gradient_smooth = gaussian_blur_array(gradient_magnitude, radius=4)
+    depth_features.append(gradient_smooth)
+    
+    # Feature 3: セグメンテーションベース深度
+    # 大きな領域での平均明度をセグメント化
+    segment_map = gaussian_blur_array(gray_array, radius=15)
+    # セグメント間の差分を強調
+    segment_edges = np.abs(segment_map - gray_array)
+    segment_depth = gaussian_blur_array(segment_edges, radius=8)
+    depth_features.append(segment_depth)
+    
+    # Feature 4: シャドウマップ（暗い領域 = 影 = 近い物体の下）
+    # 暗い領域を抽出
+    shadow_threshold = np.mean(gray_array) - 0.5 * np.std(gray_array)
+    shadow_map = np.where(gray_array < shadow_threshold, 1.0 - gray_array, 0)
+    shadow_smooth = gaussian_blur_array(shadow_map, radius=6)
+    depth_features.append(shadow_smooth)
     
     # 疑似CNN風の特徴結合
     combined_features = np.zeros_like(gray_array)
-    weights = [0.4, 0.2, 0.25, 0.15]  # 明度を重視した重み配分
+    weights = [0.3, 0.25, 0.25, 0.2]  # バランスの取れた重み配分
     
     for i, feature in enumerate(depth_features):
         # 正規化
@@ -453,21 +460,20 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     gray_array = (gray_array + 2.0) / 4.0  # [-2, 2] -> [0, 1]の概算
     
     # DepthAnything風特徴抽出（Foundation Modelとして汎用的な深度推定）
-    # 1. 大域構造の把握
-    coarse_structure = gaussian_blur_array(gray_array, radius=10)
-    fine_structure = gaussian_blur_array(gray_array, radius=3)
-    structure_diff = fine_structure - coarse_structure
+    # 1. マルチスケールエッジ検出
+    edges_fine = gaussian_blur_array(np.abs(gray_array - gaussian_blur_array(gray_array, radius=1)), radius=2)
+    edges_coarse = gaussian_blur_array(np.abs(gray_array - gaussian_blur_array(gray_array, radius=4)), radius=4)
+    multi_scale_edges = edges_fine * 0.6 + edges_coarse * 0.4
     
-    # 2. オブジェクト領域の分離
-    # 明度ベースの領域分割
-    local_mean = gaussian_blur_array(gray_array, radius=5)
-    local_contrast = np.abs(gray_array - local_mean)
-    region_map = gaussian_blur_array(local_contrast, radius=5)
+    # 2. 領域セグメンテーション（大きな領域を分離）
+    mean_blur = gaussian_blur_array(gray_array, radius=12)
+    region_variance = compute_local_variance_fast(gray_array, window=9)
+    region_map = gaussian_blur_array(region_variance, radius=6)
     
-    # 3. コンテキスト認識（シーンタイプに応じた処理）
-    # 上半分が明るければ屋外、暗ければ屋内と仮定
-    upper_brightness = np.mean(gray_array[:new_h//3, :])
-    scene_outdoor_factor = np.clip(upper_brightness * 2, 0, 1)
+    # 3. 適応的深度バイアス（シーンに応じて調整）
+    # 全体のコントラストを考慮
+    global_contrast = np.std(gray_array)
+    contrast_factor = np.clip(global_contrast * 3, 0.5, 1.5)
     
     # 垂直位置（透視手がかり）
     height_factor = np.linspace(0.2, 1.0, new_h).reshape(-1, 1)  # 上=遠い、下=近い
@@ -475,11 +481,11 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     
     # DepthAnything風特徴結合（汎用性を重視）
     depth_features = (
-        0.35 * coarse_structure +             # 大域構造
-        0.25 * region_map +                   # オブジェクト領域
-        0.2 * (1.0 - structure_diff) +        # 滑らかな領域
-        0.2 * scene_outdoor_factor +          # シーン認識
-        0.2 * height_factor                   # 垂直位置
+        0.3 * multi_scale_edges +             # マルチスケールエッジ
+        0.25 * region_map +                   # 領域セグメンテーション
+        0.2 * mean_blur +                     # 大域構造
+        0.15 * contrast_factor +              # コントラスト適応
+        0.1 * height_factor                   # 垂直位置
     )
     
     # 正規化
@@ -771,8 +777,10 @@ def generate_pointcloud(original_image, depth_image):
                 y_norm = (y / h - 0.5) * scale_y
                 # 深度値: 白(255)=近い=正のZ、黒(0)=遠い=負のZ
                 # depth_val: 0.0(黒)～1.0(白)
-                # z_norm: -1.0(遠い)～1.0(近い)
-                z_norm = (depth_val * 2 - 1) * 0.5  # スケールを調整
+                # スケーリングを改善
+                # 近い物体をより強調するための非線形変換
+                depth_adjusted = np.power(depth_val, 0.7)  # ガンマ補正で近い物体を強調
+                z_norm = (depth_adjusted - 0.5) * 1.0  # -0.5～0.5の範囲に調整
                 
                 points.append([x_norm, y_norm, z_norm])
                 r, g, b = orig_pixels[x, y]
@@ -868,7 +876,7 @@ async def predict_depth(
             raise ValueError(f"Cannot process image file: {str(img_error)}")
         
         # Balanced size limitation for Railway memory constraints
-        max_pixels = 250_000  # About 500x500 or 640x390, balanced quality/memory
+        max_pixels = 400_000  # About 632x632 or 800x500, better quality/memory balance
         current_pixels = image.size[0] * image.size[1]
         
         if current_pixels > max_pixels:
