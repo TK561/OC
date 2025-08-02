@@ -11,7 +11,13 @@ import time
 from typing import Optional
 import requests
 import numpy as np
-import cv2
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    import warnings
+    warnings.warn("OpenCV not available, using fallback edge detection")
 
 app = FastAPI(title="DPT/MiDaS/DepthAnything Lightweight API")
 
@@ -761,21 +767,49 @@ def zoedepth_inspired(image: Image.Image):
     
     return result
 
+def canny_edge_detection_fallback(image: Image.Image, low_threshold: int = 50, high_threshold: int = 150) -> Image.Image:
+    """OpenCVがない場合のCannyエッジ検出代替実装"""
+    # グレースケール変換
+    if image.mode != 'L':
+        gray_image = image.convert('L')
+    else:
+        gray_image = image
+    
+    # PILのFIND_EDGESフィルタを使用
+    edge_image = gray_image.filter(ImageFilter.FIND_EDGES)
+    
+    # エッジ強化
+    edge_image = edge_image.filter(ImageFilter.EDGE_ENHANCE_MORE)
+    
+    # 閾値処理をエミュレート
+    edge_array = np.array(edge_image)
+    threshold_factor = low_threshold / 50.0  # 正規化
+    edge_array = np.where(edge_array > threshold_factor * 128, 255, 0).astype(np.uint8)
+    
+    return Image.fromarray(edge_array, mode='L')
+
 def canny_edge_detection(image: Image.Image, low_threshold: int = 50, high_threshold: int = 150) -> Image.Image:
     """Cannyエッジ検出器を使用してエッジマップを生成"""
-    # PILからOpenCVフォーマットに変換
-    img_array = np.array(image)
-    if len(img_array.shape) == 3:
-        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+    if CV2_AVAILABLE:
+        try:
+            # PILからOpenCVフォーマットに変換
+            img_array = np.array(image)
+            if len(img_array.shape) == 3:
+                gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+            else:
+                gray = img_array
+            
+            # Cannyエッジ検出
+            edges = cv2.Canny(gray, low_threshold, high_threshold)
+            
+            # PILイメージに戻す
+            edge_image = Image.fromarray(edges, mode='L')
+            return edge_image
+        except Exception as e:
+            logger.warning(f"OpenCV Canny failed, using fallback: {e}")
+            return canny_edge_detection_fallback(image, low_threshold, high_threshold)
     else:
-        gray = img_array
-    
-    # Cannyエッジ検出
-    edges = cv2.Canny(gray, low_threshold, high_threshold)
-    
-    # PILイメージに戻す
-    edge_image = Image.fromarray(edges, mode='L')
-    return edge_image
+        return canny_edge_detection_fallback(image, low_threshold, high_threshold)
 
 def invert_depth_map(depth_image: Image.Image) -> Image.Image:
     """深度マップを反転（近く=白、遠く=黒）"""
