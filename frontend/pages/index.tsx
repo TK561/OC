@@ -17,7 +17,7 @@ export default function Home() {
   const [showModelInfo, setShowModelInfo] = useState(false)
   const [viewerSettings, setViewerSettings] = useState<ViewerSettings>({
     colorMap: 'viridis',
-    pointSize: 0.1,
+    pointSize: 0.50,
     backgroundColor: '#000000',
     showAxes: true
   })

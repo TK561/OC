@@ -33,7 +33,7 @@ export default function ControlPanel({ settings, onSettingsChange, depthResult }
             <input
               type="range"
               min="0.01"
-              max="0.5"
+              max="1.00"
               step="0.01"
               value={settings.pointSize}
               onChange={(e) => handleSettingChange('pointSize', parseFloat(e.target.value))}
