@@ -19,6 +19,15 @@ except ImportError:
     import warnings
     warnings.warn("OpenCV not available, using fallback edge detection")
 
+try:
+    import torch
+    from transformers import DPTImageProcessor, DPTForDepthEstimation, AutoImageProcessor, AutoModelForDepthEstimation
+    TRANSFORMERS_AVAILABLE = True
+    logger.info("Transformers and PyTorch available for depth estimation")
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    logger.warning("Transformers not available, using fallback depth estimation")
+
 app = FastAPI(title="DPT/MiDaS/DepthAnything Lightweight API")
 
 # Setup logging
@@ -67,8 +76,130 @@ MODEL_CONFIGS = {
     }
 }
 
-# Model cache
+# Model cache for HuggingFace models
 model_cache = {}
+processor_cache = {}
+
+def load_huggingface_model(model_name: str):
+    """HuggingFaceモデルとプロセッサを読み込み、キャッシュする"""
+    if model_name in model_cache and model_name in processor_cache:
+        logger.info(f"Using cached model: {model_name}")
+        return model_cache[model_name], processor_cache[model_name]
+    
+    try:
+        logger.info(f"Loading HuggingFace model: {model_name}")
+        
+        if model_name == "Intel/dpt-large":
+            processor = DPTImageProcessor.from_pretrained(model_name)
+            model = DPTForDepthEstimation.from_pretrained(model_name)
+        elif model_name == "Intel/dpt-hybrid-midas":
+            processor = DPTImageProcessor.from_pretrained(model_name)
+            model = DPTForDepthEstimation.from_pretrained(model_name)
+        elif model_name == "LiheYoung/depth-anything-small-hf":
+            processor = AutoImageProcessor.from_pretrained(model_name)
+            model = AutoModelForDepthEstimation.from_pretrained(model_name)
+        else:
+            raise ValueError(f"Unsupported model: {model_name}")
+        
+        # メモリ最適化のため評価モードに設定
+        model.eval()
+        
+        # キャッシュに保存
+        model_cache[model_name] = model
+        processor_cache[model_name] = processor
+        
+        logger.info(f"Successfully loaded and cached model: {model_name}")
+        return model, processor
+        
+    except Exception as e:
+        logger.error(f"Failed to load model {model_name}: {e}")
+        return None, None
+
+def real_depth_estimation(image: Image.Image, model_name: str) -> Image.Image:
+    """実際のHuggingFaceモデルを使用した深度推定"""
+    if not TRANSFORMERS_AVAILABLE:
+        logger.warning("Transformers not available, using fallback")
+        return fallback_depth_estimation(image)
+    
+    try:
+        # モデルとプロセッサを読み込み
+        model, processor = load_huggingface_model(model_name)
+        if model is None or processor is None:
+            logger.warning(f"Failed to load model {model_name}, using fallback")
+            return fallback_depth_estimation(image)
+        
+        logger.info(f"Running depth estimation with {model_name}")
+        
+        # 画像の前処理
+        inputs = processor(images=image, return_tensors="pt")
+        
+        # 深度推定実行
+        with torch.no_grad():
+            outputs = model(**inputs)
+            predicted_depth = outputs.predicted_depth
+        
+        # テンソルからnumpy配列に変換
+        depth = predicted_depth.squeeze().cpu().numpy()
+        
+        # 正規化 (0-1)
+        if depth.max() > depth.min():
+            depth_normalized = (depth - depth.min()) / (depth.max() - depth.min())
+        else:
+            depth_normalized = np.zeros_like(depth)
+        
+        # 深度の反転 (近い=高い値、遠い=低い値)
+        # モデルによって出力が異なる場合があるので調整
+        if model_name in ["Intel/dpt-large", "Intel/dpt-hybrid-midas"]:
+            # DPTモデルは通常、遠い=高い値なので反転
+            depth_normalized = 1.0 - depth_normalized
+        
+        # 0-255にスケール
+        depth_uint8 = (depth_normalized * 255).astype(np.uint8)
+        
+        # PIL Imageに変換
+        depth_image = Image.fromarray(depth_uint8, mode='L')
+        
+        # 元の画像サイズにリサイズ
+        if depth_image.size != image.size:
+            depth_image = depth_image.resize(image.size, Image.Resampling.BICUBIC)
+        
+        logger.info(f"Depth estimation completed successfully with {model_name}")
+        return depth_image
+        
+    except Exception as e:
+        logger.error(f"Real depth estimation failed for {model_name}: {e}")
+        return fallback_depth_estimation(image)
+
+def fallback_depth_estimation(image: Image.Image) -> Image.Image:
+    """フォールバック用のシンプルな深度推定"""
+    logger.info("Using fallback depth estimation")
+    
+    # グレースケール変換
+    gray = image.convert('L')
+    gray_array = np.array(gray, dtype=np.float32) / 255.0
+    
+    w, h = image.size
+    center_x, center_y = w // 2, h // 2
+    
+    # 簡易的な深度マップ生成
+    y_coords, x_coords = np.mgrid[0:h, 0:w]
+    
+    # 中央からの距離ベース
+    distance_from_center = np.sqrt((x_coords - center_x)**2 + (y_coords - center_y)**2)
+    max_distance = np.sqrt(center_x**2 + center_y**2)
+    center_weight = 1.0 - (distance_from_center / max_distance)
+    
+    # 明度と中央バイアスを組み合わせ
+    depth_map = gray_array * 0.7 + center_weight * 0.3
+    
+    # 正規化
+    if depth_map.max() > depth_map.min():
+        depth_map = (depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())
+    
+    # 0-255にスケール
+    depth_uint8 = (depth_map * 255).astype(np.uint8)
+    
+    return Image.fromarray(depth_uint8, mode='L')
 
 def maximum_filter_simple(arr, size):
     """簡易最大値フィルタ"""
@@ -926,13 +1057,8 @@ def enhanced_depth_processing_pipeline(
     original_size = image.size
     logger.info(f"高品質深度グラデーション処理開始 - 入力サイズ: {original_size}")
     
-    # ステップ1: 深度推定
-    if model_choice == "Intel/dpt-large":
-        depth_map = dpt_inspired_depth(image, original_size)
-    elif model_choice == "Intel/dpt-hybrid-midas":
-        depth_map = midas_inspired_depth(image, original_size)
-    else:  # デフォルトはDepthAnything
-        depth_map = depth_anything_inspired(image, original_size)
+    # ステップ1: 深度推定（実際のHuggingFaceモデル使用）
+    depth_map = real_depth_estimation(image, model_choice)
     
     logger.info(f"深度推定完了 - サイズ: {depth_map.size}")
     
@@ -1162,21 +1288,9 @@ async def predict_depth(
         logger.info(f"Using model config: {config}")
         logger.info("Railway deployment refresh - portrait image fix active")
         
-        # Depth estimation based on model type
-        model_type = config["type"]
-        logger.info(f"Processing with model_type: {model_type}")
-        
+        # Depth estimation using real HuggingFace models
         try:
-            if model_type == "pillow_midas":
-                depth_gray = midas_inspired_depth(image, original_size)
-            elif model_type == "pillow_dpt_large":
-                depth_gray = dpt_inspired_depth(image, original_size)
-            elif model_type == "pillow_depth_anything_v1":
-                depth_gray = depth_anything_inspired(image, original_size)
-            else:
-                # Default fallback to DPT-Large
-                logger.info(f"Unknown model_type {model_type}, using DPT fallback")
-                depth_gray = dpt_inspired_depth(image, original_size)
+            depth_gray = real_depth_estimation(image, model)
             
             logger.info(f"Depth estimation completed successfully. Result size: {depth_gray.size}")
         except Exception as depth_error:
@@ -1235,9 +1349,17 @@ async def predict_depth(
 @app.post("/api/clear-cache")
 async def clear_cache():
     """Clear model cache to free memory"""
-    global model_cache
+    global model_cache, processor_cache
     model_cache.clear()
-    return {"success": True, "message": "Model cache cleared"}
+    processor_cache.clear()
+    
+    # メモリ解放を促進
+    if TRANSFORMERS_AVAILABLE:
+        import torch
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    
+    return {"success": True, "message": "Model cache cleared and memory freed"}
 
 @app.post("/api/enhanced-depth-processing")
 async def enhanced_depth_processing(
