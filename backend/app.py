@@ -51,12 +51,12 @@ MODEL_CONFIGS = {
         "input_size": 384,
         "description": "MiDaS v3.1 Pillow implementation"
     },
-    "LiheYoung/depth-anything-large-hf": {
-        "name": "DepthAnything v1 Large",
+    "LiheYoung/depth-anything-small-hf": {
+        "name": "DepthAnything v1 Small",
         "type": "pillow_depth_anything_v1",
         "size_mb": 0,
         "input_size": 518,
-        "description": "DepthAnything v1 Large Pillow implementation"
+        "description": "DepthAnything v1 Small Pillow implementation"
     }
 }
 
@@ -148,13 +148,16 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     else:
         normalized_depth = depth_estimate
     
-    # MiDaSは逆深度を出力するため、変換を適用
-    # 逆深度: 1/depth（近い=大きい値、遠い=小さい値）
-    # 表示用: 白=近い、黒=遠い
-    inverse_depth = normalized_depth  # 既に近い=高い値になっている
+    # 深度推定の正しい定義: カメラからの距離
+    # 近い物体 = 小さい距離値 = 白い表示
+    # 遠い物体 = 大きい距離値 = 暗い表示
     
-    # [0, 255]にスケール
-    depth_map = (inverse_depth * 255).astype(np.uint8)
+    # MiDaSの逆深度出力を正しい深度表示に変換
+    # 逆深度(1/depth): 近い=大きい値 → 近い=白い表示
+    depth_display = normalized_depth  # 近い物体が高い値（白）に
+    
+    # [0, 255]にスケール（近い=255/白、遠い=0/黒）
+    depth_map = (depth_display * 255).astype(np.uint8)
     
     # PIL Imageに変換
     logger.info(f"MiDaS - Before fromarray: depth_map.shape = {depth_map.shape}")
@@ -342,13 +345,16 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     else:
         normalized_depth = final_depth
     
-    # DPTは逆深度（1/depth）を出力
-    # 調査結果: 高い値=近い物体、低い値=遠い物体
-    # 表示: 白=近い、黒=遠い
-    inverse_depth = normalized_depth  # 既に正しい方向
+    # 深度推定の正しい定義: カメラからの距離
+    # 近い物体 = 小さい距離値 = 白い表示
+    # 遠い物体 = 大きい距離値 = 暗い表示
     
-    # [0, 255]にスケール
-    depth_map = (inverse_depth * 255).astype(np.uint8)
+    # DPTの逆深度出力を正しい深度表示に変換
+    # 逆深度(1/depth): 近い=大きい値 → 近い=白い表示
+    depth_display = normalized_depth  # 近い物体が高い値（白）に
+    
+    # [0, 255]にスケール（近い=255/白、遠い=0/黒）
+    depth_map = (depth_display * 255).astype(np.uint8)
     
     # PIL Imageに変換
     logger.info(f"DPT - Before fromarray: depth_map.shape = {depth_map.shape}")
@@ -452,12 +458,16 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     else:
         normalized_depth = depth_estimate
     
-    # DepthAnythingは通常の深度を出力（逆深度ではない）
-    # 表示: 白=近い、黒=遠い
-    depth_output = normalized_depth  # 正しい方向
+    # 深度推定の正しい定義: カメラからの距離
+    # 近い物体 = 小さい距離値 = 白い表示
+    # 遠い物体 = 大きい距離値 = 暗い表示
     
-    # [0, 255]にスケール
-    depth_map = (depth_output * 255).astype(np.uint8)
+    # DepthAnythingの深度出力を正しい距離表示に変換
+    # 現在の出力: 近い=高い値 → 近い=白い表示
+    depth_display = normalized_depth  # 近い物体が高い値（白）に
+    
+    # [0, 255]にスケール（近い=255/白、遠い=0/黒）
+    depth_map = (depth_display * 255).astype(np.uint8)
     
     # PIL Imageに変換
     logger.info(f"DepthAnything - Before fromarray: depth_map.shape = {depth_map.shape}")

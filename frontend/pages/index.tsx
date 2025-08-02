@@ -157,7 +157,7 @@ export default function Home() {
     const models = [
       'Intel/dpt-large',
       'Intel/dpt-hybrid-midas', 
-      'LiheYoung/depth-anything-large-hf'
+      'LiheYoung/depth-anything-small-hf'
     ]
 
     setIsProcessing(true)
@@ -298,7 +298,7 @@ export default function Home() {
               >
                 <option value="Intel/dpt-large">DPT-Large (高精度・1.3GB)</option>
                 <option value="Intel/dpt-hybrid-midas">MiDaS v3.1 (高速・470MB)</option>
-                <option value="LiheYoung/depth-anything-large-hf">DepthAnything v1 (汎用・1.4GB)</option>
+                <option value="LiheYoung/depth-anything-small-hf">DepthAnything v1 (汎用・244MB)</option>
               </select>
               
               {/* 情報ボタン */}
@@ -347,7 +347,7 @@ export default function Home() {
                       </ul>
                     </div>
                   )}
-                  {selectedModel === 'LiheYoung/depth-anything-large-hf' && (
+                  {selectedModel === 'LiheYoung/depth-anything-small-hf' && (
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-3">Depth Anything V1 (汎用深度推定)</h4>
                       <ul className="space-y-2 text-gray-600">
@@ -511,7 +511,7 @@ export default function Home() {
                           <h4 className="text-sm font-medium text-gray-900 mb-2">
                             {modelName === 'Intel/dpt-large' ? 'DPT-Large' :
                              modelName === 'Intel/dpt-hybrid-midas' ? 'MiDaS v3.1' :
-                             modelName === 'LiheYoung/depth-anything-large-hf' ? 'DepthAnything' :
+                             modelName === 'LiheYoung/depth-anything-small-hf' ? 'DepthAnything' :
                              modelName}
                           </h4>
                           <img
