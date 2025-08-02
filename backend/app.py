@@ -11,6 +11,7 @@ import time
 from typing import Optional
 import requests
 import numpy as np
+import cv2
 
 app = FastAPI(title="DPT/MiDaS/DepthAnything Lightweight API")
 
@@ -760,6 +761,163 @@ def zoedepth_inspired(image: Image.Image):
     
     return result
 
+def canny_edge_detection(image: Image.Image, low_threshold: int = 50, high_threshold: int = 150) -> Image.Image:
+    """Cannyエッジ検出器を使用してエッジマップを生成"""
+    # PILからOpenCVフォーマットに変換
+    img_array = np.array(image)
+    if len(img_array.shape) == 3:
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = img_array
+    
+    # Cannyエッジ検出
+    edges = cv2.Canny(gray, low_threshold, high_threshold)
+    
+    # PILイメージに戻す
+    edge_image = Image.fromarray(edges, mode='L')
+    return edge_image
+
+def invert_depth_map(depth_image: Image.Image) -> Image.Image:
+    """深度マップを反転（近く=白、遠く=黒）"""
+    depth_array = np.array(depth_image)
+    inverted_array = 255 - depth_array
+    return Image.fromarray(inverted_array, mode='L')
+
+def adjust_depth_contrast(depth_image: Image.Image, gamma: float = 1.0, contrast: float = 1.0) -> Image.Image:
+    """深度マップのコントラストとガンマ調整"""
+    depth_array = np.array(depth_image, dtype=np.float32) / 255.0
+    
+    # ガンマ補正
+    if gamma != 1.0:
+        depth_array = np.power(depth_array, gamma)
+    
+    # コントラスト調整
+    if contrast != 1.0:
+        depth_array = (depth_array - 0.5) * contrast + 0.5
+        depth_array = np.clip(depth_array, 0, 1)
+    
+    # [0, 255]にスケール
+    adjusted_array = (depth_array * 255).astype(np.uint8)
+    return Image.fromarray(adjusted_array, mode='L')
+
+def compose_edge_depth_mask(edge_image: Image.Image, depth_image: Image.Image, composition_mode: str = "multiply") -> Image.Image:
+    """エッジマップと深度マップを合成"""
+    edge_array = np.array(edge_image, dtype=np.float32) / 255.0
+    depth_array = np.array(depth_image, dtype=np.float32) / 255.0
+    
+    if composition_mode == "multiply":
+        # 乗算合成：エッジ部分の深度値をそのまま保持
+        result_array = edge_array * depth_array
+    elif composition_mode == "conditional":
+        # 条件付き合成：エッジがある場所では深度値、ない場所では黒
+        result_array = np.where(edge_array > 0.1, depth_array, 0)
+    elif composition_mode == "alpha_blend":
+        # アルファブレンディング：より滑らかな合成
+        alpha = 0.7
+        result_array = alpha * depth_array + (1 - alpha) * edge_array * depth_array
+    else:
+        # デフォルトは乗算
+        result_array = edge_array * depth_array
+    
+    # [0, 255]にスケール
+    result_uint8 = (result_array * 255).astype(np.uint8)
+    return Image.fromarray(result_uint8, mode='L')
+
+def apply_post_processing(image: Image.Image, gamma: float = 1.0, blur_radius: float = 0.0) -> Image.Image:
+    """後処理：ガンマ補正とガウシアンブラー"""
+    processed_image = image.copy()
+    
+    # ガンマ補正
+    if gamma != 1.0:
+        processed_image = adjust_depth_contrast(processed_image, gamma=gamma)
+    
+    # ガウシアンブラー
+    if blur_radius > 0:
+        processed_image = processed_image.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+    
+    return processed_image
+
+def depth_edge_processing_pipeline(
+    image: Image.Image, 
+    model_choice: str = "LiheYoung/depth-anything-small-hf",
+    edge_low_threshold: int = 50,
+    edge_high_threshold: int = 150,
+    invert_depth: bool = True,
+    depth_gamma: float = 1.0,
+    depth_contrast: float = 1.0,
+    composition_mode: str = "multiply",
+    post_gamma: float = 1.0,
+    post_blur: float = 0.0
+) -> dict:
+    """
+    深度推定とエッジ検出を組み合わせた完全な処理パイプライン
+    
+    Args:
+        image: 入力画像
+        model_choice: 深度推定モデルの選択
+        edge_low_threshold: Cannyエッジ検出の低閾値
+        edge_high_threshold: Cannyエッジ検出の高閾値
+        invert_depth: 深度マップを反転するか
+        depth_gamma: 深度マップのガンマ値
+        depth_contrast: 深度マップのコントラスト
+        composition_mode: 合成方法 ("multiply", "conditional", "alpha_blend")
+        post_gamma: 後処理のガンマ値
+        post_blur: 後処理のブラー半径
+    
+    Returns:
+        dict: 処理結果の辞書
+    """
+    original_size = image.size
+    logger.info(f"深度エッジ処理パイプライン開始 - 入力サイズ: {original_size}")
+    
+    # ステップ1: 深度推定
+    if model_choice == "Intel/dpt-large":
+        depth_map = dpt_inspired_depth(image, original_size)
+    elif model_choice == "Intel/dpt-hybrid-midas":
+        depth_map = midas_inspired_depth(image, original_size)
+    else:  # デフォルトはDepthAnything
+        depth_map = depth_anything_inspired(image, original_size)
+    
+    logger.info(f"深度推定完了 - サイズ: {depth_map.size}")
+    
+    # ステップ2: エッジ検出
+    edge_map = canny_edge_detection(image, edge_low_threshold, edge_high_threshold)
+    logger.info(f"エッジ検出完了 - サイズ: {edge_map.size}")
+    
+    # ステップ3: 深度マップの反転と調整
+    if invert_depth:
+        depth_map = invert_depth_map(depth_map)
+        logger.info("深度マップを反転")
+    
+    depth_map = adjust_depth_contrast(depth_map, depth_gamma, depth_contrast)
+    logger.info(f"深度マップ調整完了 - ガンマ: {depth_gamma}, コントラスト: {depth_contrast}")
+    
+    # ステップ4: マスク合成
+    composed_image = compose_edge_depth_mask(edge_map, depth_map, composition_mode)
+    logger.info(f"マスク合成完了 - 方法: {composition_mode}")
+    
+    # ステップ5: 後処理
+    final_image = apply_post_processing(composed_image, post_gamma, post_blur)
+    logger.info(f"後処理完了 - ガンマ: {post_gamma}, ブラー: {post_blur}")
+    
+    return {
+        "original_image": image,
+        "depth_map": depth_map,
+        "edge_map": edge_map,
+        "composed_image": composed_image,
+        "final_image": final_image,
+        "processing_info": {
+            "model": model_choice,
+            "edge_thresholds": [edge_low_threshold, edge_high_threshold],
+            "depth_inverted": invert_depth,
+            "depth_gamma": depth_gamma,
+            "depth_contrast": depth_contrast,
+            "composition_mode": composition_mode,
+            "post_gamma": post_gamma,
+            "post_blur": post_blur
+        }
+    }
+
 def apply_grayscale_depth_map(depth_image):
     """深度マップを高品質グレースケール表示（白=近い、黒=遠い）"""
     w, h = depth_image.size
@@ -1020,6 +1178,93 @@ async def clear_cache():
     global model_cache
     model_cache.clear()
     return {"success": True, "message": "Model cache cleared"}
+
+@app.post("/api/depth-edge-processing")
+async def depth_edge_processing(
+    file: UploadFile = File(...),
+    model: Optional[str] = Form("LiheYoung/depth-anything-small-hf"),
+    edge_low_threshold: Optional[int] = Form(50),
+    edge_high_threshold: Optional[int] = Form(150),
+    invert_depth: Optional[bool] = Form(True),
+    depth_gamma: Optional[float] = Form(1.0),
+    depth_contrast: Optional[float] = Form(1.0),
+    composition_mode: Optional[str] = Form("multiply"),
+    post_gamma: Optional[float] = Form(1.0),
+    post_blur: Optional[float] = Form(0.0)
+):
+    """深度推定とエッジ検出を組み合わせた画像処理API"""
+    try:
+        # 画像読み込み
+        contents = await file.read()
+        logger.info(f"エッジ深度処理開始 - ファイルサイズ: {len(contents)} bytes")
+        
+        if len(contents) == 0:
+            raise ValueError("空のファイルがアップロードされました")
+        
+        # 画像の前処理
+        image_bytes = io.BytesIO(contents)
+        image_bytes.seek(0)
+        image = Image.open(image_bytes)
+        
+        # EXIF処理
+        try:
+            image = ImageOps.exif_transpose(image)
+        except Exception as exif_error:
+            logger.warning(f"EXIF transpose失敗: {exif_error}")
+        
+        image = image.convert('RGB')
+        logger.info(f"画像読み込み完了: {image.size}")
+        
+        # メモリ制限対応
+        max_pixels = 400_000
+        current_pixels = image.size[0] * image.size[1]
+        
+        if current_pixels > max_pixels:
+            scale = (max_pixels / current_pixels) ** 0.5
+            new_width = int(image.size[0] * scale)
+            new_height = int(image.size[1] * scale)
+            logger.info(f"メモリ最適化のためリサイズ: {image.size} -> ({new_width}, {new_height})")
+            image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # 処理パイプライン実行
+        result = depth_edge_processing_pipeline(
+            image=image,
+            model_choice=model,
+            edge_low_threshold=edge_low_threshold,
+            edge_high_threshold=edge_high_threshold,
+            invert_depth=invert_depth,
+            depth_gamma=depth_gamma,
+            depth_contrast=depth_contrast,
+            composition_mode=composition_mode,
+            post_gamma=post_gamma,
+            post_blur=post_blur
+        )
+        
+        # Base64変換関数
+        def image_to_base64(img):
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+            return f"data:image/png;base64,{img_base64}"
+        
+        # レスポンス生成
+        response_data = {
+            "success": True,
+            "originalUrl": image_to_base64(result["original_image"]),
+            "depthMapUrl": image_to_base64(result["depth_map"]),
+            "edgeMapUrl": image_to_base64(result["edge_map"]),
+            "composedImageUrl": image_to_base64(result["composed_image"]),
+            "finalImageUrl": image_to_base64(result["final_image"]),
+            "processing_info": result["processing_info"],
+            "resolution": f"{image.size[0]}x{image.size[1]}"
+        }
+        
+        logger.info("エッジ深度処理完了")
+        return JSONResponse(response_data)
+        
+    except Exception as e:
+        logger.error(f"エッジ深度処理エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"処理に失敗しました: {str(e)}")
 
 
 if __name__ == "__main__":
