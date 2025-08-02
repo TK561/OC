@@ -109,32 +109,35 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     # MiDaSの逆深度推定アルゴリズムの近似実装
     # 真の深度推定に基づく特徴抽出
     
-    # 1. 単眼深度の基本原理: 明度と焦点ぼけ
-    # 明るい領域は通常前景（近い）、暗い領域は背景（遠い）
+    # 1. 主要物体の識別（明度ベース）
+    # 明るい領域を前景（近い）、暗い領域を背景（遠い）と識別
     brightness_depth = gray_array
     
-    # 2. 大気遠近法: 遠い物体はコントラストが低下
-    # 局所コントラストが高い = 近い物体
-    local_variance = compute_local_variance_fast(gray_array, window=7)
-    contrast_depth = gaussian_blur_array(local_variance, radius=4)
+    # 2. エッジベースの物体境界検出
+    # 明確な境界を持つ物体は前景（近い）
+    edges = np.abs(gray_array - gaussian_blur_array(gray_array, radius=1))
+    edge_depth = edges
     
-    # 3. テクスチャ密度: 近い物体ほど細かいテクスチャが見える
-    texture_fine = np.abs(gray_array - gaussian_blur_array(gray_array, radius=1))
-    texture_coarse = np.abs(gray_array - gaussian_blur_array(gray_array, radius=4))
-    texture_depth = (texture_fine + texture_coarse) / 2.0
+    # 3. コントラストベースの深度推定
+    # 高コントラスト領域 = 前景（近い）
+    local_variance = compute_local_variance_fast(gray_array, window=5)
+    contrast_depth = local_variance
     
-    # 4. 相対的位置情報（遠近法の幾何学的原理）
-    # 通常、画像の上部は遠い（空、背景）、下部は近い（前景）
+    # 4. 位置情報（上下の遠近関係）
+    # 上部=遠い、下部=近いの一般的傾向
     vertical_position = np.linspace(0.0, 1.0, new_h).reshape(-1, 1)
     position_depth = np.tile(vertical_position, (1, new_w))
     
-    # 5. 焦点ぼけシミュレーション（遠い物体はぼやけて見える）
-    sharp_edges = np.abs(gray_array - gaussian_blur_array(gray_array, radius=2))
-    focus_depth = gaussian_blur_array(sharp_edges, radius=3)
+    # 5. 中央集中バイアス（主要物体は中央付近に配置されることが多い）
+    center_x, center_y = new_w // 2, new_h // 2
+    y_coords, x_coords = np.mgrid[0:new_h, 0:new_w]
+    distance_from_center = np.sqrt((x_coords - center_x)**2 + (y_coords - center_y)**2)
+    max_distance = np.sqrt(center_x**2 + center_y**2)
+    center_bias = 1.0 - (distance_from_center / max_distance)  # 中央ほど高い値
     
     # 各特徴を個別に正規化してから合成（滑らかなグラデーション生成）
-    features = [brightness_depth, contrast_depth, texture_depth, position_depth, focus_depth]
-    weights = [0.25, 0.25, 0.20, 0.15, 0.15]
+    features = [brightness_depth, edge_depth, contrast_depth, position_depth, center_bias]
+    weights = [0.3, 0.25, 0.25, 0.1, 0.1]
     
     # 各特徴を0-1に正規化
     normalized_features = []
@@ -150,15 +153,12 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     for i, (feature, weight) in enumerate(zip(normalized_features, weights)):
         depth_estimate += weight * feature
     
-    # 滑らかなグラデーション生成のための追加処理
-    # 1. ガウシアンスムージング
-    depth_smoothed = gaussian_blur_array(depth_estimate, radius=5)
-    
-    # 2. 最終正規化
-    if depth_smoothed.max() > depth_smoothed.min():
-        normalized_depth = (depth_smoothed - depth_smoothed.min()) / (depth_smoothed.max() - depth_smoothed.min())
+    # 鮮明な深度マップ生成（ボカシなし）
+    # 最終正規化のみ適用
+    if depth_estimate.max() > depth_estimate.min():
+        normalized_depth = (depth_estimate - depth_estimate.min()) / (depth_estimate.max() - depth_estimate.min())
     else:
-        normalized_depth = depth_smoothed
+        normalized_depth = depth_estimate
     
     # 深度推定アプリの統一表示仕様:
     # 近い物体 = 白い表示（高い値）
@@ -199,9 +199,8 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     logger.info(f"MiDaS - Final depth map size: {depth_final.size}")
     
-    # 後処理: 滑らかなグラデーションを保持
-    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.0))
-    # autocontrastを削除して滑らかなグラデーションを保持
+    # 後処理: 鮮明な深度マップのためボカシを削除
+    # depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.0))
     
     return depth_final
 
@@ -398,9 +397,8 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     logger.info(f"DPT - Final depth map size: {depth_final.size}")
     
-    # 後処理: 滑らかなグラデーションを保持
-    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.0))
-    # autocontrastを削除して滑らかなグラデーションを保持
+    # 後処理: 鮮明な深度マップのためボカシを削除
+    # depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.0))
     
     return depth_final
 
@@ -511,9 +509,8 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     logger.info(f"DepthAnything - Final depth map size: {depth_final.size}")
     
-    # 後処理: 滑らかなグラデーションを保持
-    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.5))
-    # autocontrastを削除して滑らかなグラデーションを保持
+    # 後処理: 鮮明な深度マップのためボカシを削除
+    # depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.5))
     
     return depth_final
 
