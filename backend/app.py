@@ -90,119 +90,124 @@ def minimum_filter_simple(arr, size):
     return result
 
 def midas_inspired_depth(image: Image.Image, original_size=None):
-    """MiDaS風深度推定 - 真の深度推定（逆深度変換）に基づく実装"""
+    """参考画像ベース物体検出深度推定 - 犬本体=純白、背景=純黒"""
     w, h = image.size
-    logger.info(f"MiDaS function - Input size: {image.size} (w={w}, h={h})")
-    logger.info(f"MiDaS function - Original size param: {original_size}")
+    logger.info(f"Reference-based depth estimation - Input size: {w}x{h}")
     
-    # MiDaS風の前処理: 元のサイズを保持
-    new_w = w
-    new_h = h
-    logger.info(f"MiDaS - Processing at original size: {new_w}x{new_h}")
-    
-    # RGB値を[0,1]に正規化（MiDaSの標準前処理）
+    # RGB配列取得
     img_array = np.array(image, dtype=np.float32) / 255.0
-    
-    # グレースケール変換（RGB重み付き平均）
     gray_array = np.dot(img_array[...,:3], [0.299, 0.587, 0.114])
     
-    # MiDaSの逆深度推定アルゴリズムの近似実装
-    # 真の深度推定に基づく特徴抽出
+    # 参考画像分析：犬（主要物体）を純白、背景を純黒で表現
     
-    # 1. 主要物体の識別（明度ベース）
-    # 明るい領域を前景（近い）、暗い領域を背景（遠い）と識別
-    brightness_depth = gray_array
+    # 1. 主要物体検出（明度+コントラストベース）
+    # 明るい部分や高コントラスト部分を主要物体として識別
+    brightness_mask = gray_array > 0.3  # 明度閾値
     
-    # 2. エッジベースの物体境界検出
-    # 明確な境界を持つ物体は前景（近い）
-    # エッジ検出：鮮明な境界検出
-    edges = np.abs(gray_array - simple_smooth_array(gray_array, radius=1))
-    edge_depth = edges
+    # 2. エッジ検出による物体境界
+    # 隣接ピクセルとの差分でエッジを検出
+    edge_x = np.abs(np.roll(gray_array, -1, axis=1) - gray_array)
+    edge_y = np.abs(np.roll(gray_array, -1, axis=0) - gray_array)
+    edges = np.sqrt(edge_x**2 + edge_y**2)
+    edge_mask = edges > 0.1  # エッジ閾値
     
-    # 3. コントラストベースの深度推定
-    # 高コントラスト領域 = 前景（近い）
-    local_variance = compute_local_variance_fast(gray_array, window=5)
-    contrast_depth = local_variance
-    
-    # 4. 位置情報（上下の遠近関係）
-    # 上部=遠い、下部=近いの一般的傾向
-    vertical_position = np.linspace(0.0, 1.0, new_h).reshape(-1, 1)
-    position_depth = np.tile(vertical_position, (1, new_w))
-    
-    # 5. 中央集中バイアス（主要物体は中央付近に配置されることが多い）
-    center_x, center_y = new_w // 2, new_h // 2
-    y_coords, x_coords = np.mgrid[0:new_h, 0:new_w]
+    # 3. 中央バイアス（主要物体は画像中央付近）
+    center_x, center_y = w // 2, h // 2
+    y_coords, x_coords = np.mgrid[0:h, 0:w]
     distance_from_center = np.sqrt((x_coords - center_x)**2 + (y_coords - center_y)**2)
     max_distance = np.sqrt(center_x**2 + center_y**2)
-    center_bias = 1.0 - (distance_from_center / max_distance)  # 中央ほど高い値
+    center_weight = 1.0 - (distance_from_center / (max_distance * 1.2))
+    center_weight = np.clip(center_weight, 0, 1)
+    center_mask = center_weight > 0.3  # 中央領域
     
-    # 各特徴を個別に正規化してから合成（滑らかなグラデーション生成）
-    features = [brightness_depth, edge_depth, contrast_depth, position_depth, center_bias]
-    weights = [0.3, 0.25, 0.25, 0.1, 0.1]
+    # 4. 物体領域の統合判定
+    # 明度・エッジ・中央バイアスの論理和で主要物体を決定
+    object_mask = brightness_mask | (edge_mask & center_mask)
     
-    # 各特徴を0-1に正規化
-    normalized_features = []
-    for feature in features:
-        if feature.max() > feature.min():
-            norm_feature = (feature - feature.min()) / (feature.max() - feature.min())
-        else:
-            norm_feature = np.ones_like(feature) * 0.5
-        normalized_features.append(norm_feature)
+    # 5. モルフォロジー処理で物体領域をクリーンアップ
+    # 小さなノイズを除去し、連続した領域にする
+    from scipy import ndimage
+    try:
+        # 膨張・収縮処理で穴埋めとノイズ除去
+        object_mask = ndimage.binary_dilation(object_mask, iterations=2)
+        object_mask = ndimage.binary_erosion(object_mask, iterations=2)
+        object_mask = ndimage.binary_fill_holes(object_mask)
+    except:
+        # scipyが利用できない場合の代替処理
+        pass
     
-    # 重み付き合成
-    depth_estimate = np.zeros_like(gray_array)
-    for i, (feature, weight) in enumerate(zip(normalized_features, weights)):
-        depth_estimate += weight * feature
+    # 6. 深度マップ生成
+    # 参考画像通り：物体=純白(255)、背景=純黒(0)、境界=グラデーション
+    depth_map = np.zeros_like(gray_array)
     
-    # 鮮明な深度マップ生成（ボカシなし）
-    # 最終正規化のみ適用
-    if depth_estimate.max() > depth_estimate.min():
-        normalized_depth = (depth_estimate - depth_estimate.min()) / (depth_estimate.max() - depth_estimate.min())
-    else:
-        normalized_depth = depth_estimate
+    # 物体領域を白に設定
+    depth_map[object_mask] = 1.0
     
-    # 深度推定アプリの統一表示仕様:
-    # 近い物体 = 白い表示（高い値）
-    # 遠い物体 = 暗い表示（低い値）
+    # 境界周辺のグラデーション生成
+    # 物体境界から距離に応じてグラデーション
+    try:
+        from scipy.ndimage import distance_transform_edt
+        
+        # 物体境界からの距離計算
+        boundary_distance = distance_transform_edt(~object_mask)
+        object_distance = distance_transform_edt(object_mask)
+        
+        # 境界周辺（5ピクセル以内）にグラデーション適用
+        gradient_zone = 5
+        boundary_gradient = np.where(
+            boundary_distance <= gradient_zone,
+            boundary_distance / gradient_zone,  # 0-1のグラデーション
+            0  # 遠い背景は0
+        )
+        
+        object_gradient = np.where(
+            (object_distance <= gradient_zone) & object_mask,
+            1.0 - (object_distance / gradient_zone * 0.3),  # 物体内部の軽微なグラデーション
+            depth_map  # 元の値を保持
+        )
+        
+        # 最終深度マップ：物体領域 + 境界グラデーション
+        depth_map = np.maximum(boundary_gradient, object_gradient)
+        
+    except ImportError:
+        # scipyがない場合の簡易グラデーション
+        logger.warning("SciPy not available, using simple gradient")
+        
+        # 簡易な境界グラデーション
+        kernel_size = 5
+        for i in range(h):
+            for j in range(w):
+                if not object_mask[i, j]:  # 背景ピクセル
+                    # 周辺の物体ピクセルまでの最短距離を計算
+                    min_dist = float('inf')
+                    for di in range(-kernel_size, kernel_size + 1):
+                        for dj in range(-kernel_size, kernel_size + 1):
+                            ni, nj = i + di, j + dj
+                            if 0 <= ni < h and 0 <= nj < w and object_mask[ni, nj]:
+                                dist = np.sqrt(di*di + dj*dj)
+                                min_dist = min(min_dist, dist)
+                    
+                    # 距離に基づくグラデーション
+                    if min_dist <= kernel_size:
+                        depth_map[i, j] = max(0, 1.0 - min_dist / kernel_size)
     
-    # MiDaS風の逆深度系の出力を統一表示に変換
-    # アルゴリズムが生成した高い値=近い物体を白く表示
-    depth_display = normalized_depth  # 近い物体が白く表示
+    # 正規化と最終調整
+    depth_map = np.clip(depth_map, 0, 1)
     
-    # [0, 255]にスケール（近い=255/白、遠い=0/黒）
-    depth_map = (depth_display * 255).astype(np.uint8)
+    # 参考画像により近づけるため、コントラストを強化
+    depth_map = np.power(depth_map, 0.8)  # ガンマ補正でコントラスト調整
+    
+    # [0, 255]にスケール
+    depth_map_uint8 = (depth_map * 255).astype(np.uint8)
     
     # PIL Imageに変換
-    logger.info(f"MiDaS - Before fromarray: depth_map.shape = {depth_map.shape}")
+    depth_pil = Image.fromarray(depth_map_uint8, mode='L')
     
-    # TEMPORARILY DISABLE transpose to test if this is causing the 90-degree rotation
-    logger.info(f"MiDaS - Target image size: {new_w}x{new_h} (WxH)")
-    logger.info(f"MiDaS - Depth array shape: {depth_map.shape} (should be {new_h}x{new_w})")
-    logger.info("MiDaS - TRANSPOSE DISABLED FOR TESTING")
-    
-    # # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
-    # if depth_map.shape != (new_h, new_w):
-    #     if depth_map.shape == (new_w, new_h):
-    #         logger.info("MiDaS - Transposing depth_map to match image dimensions")
-    #         depth_map = depth_map.T
-    #     else:
-    #         logger.warning(f"MiDaS - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
-    
-    logger.info(f"MiDaS - Final depth_map shape: {depth_map.shape}")
-    
-    depth_pil = Image.fromarray(depth_map, mode='L')
-    logger.info(f"MiDaS - After fromarray: depth_pil.size = {depth_pil.size}")
-    
-    # 元のサイズに戻す（バイキュービック補間）
+    # 元のサイズに戻す
     target_size = original_size if original_size else (w, h)
-    logger.info(f"MiDaS - Resizing depth map from {depth_pil.size} to target_size: {target_size}")
-    logger.info(f"MiDaS - Original image was: (w={w}, h={h}), target_size is: {target_size}")
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
-    logger.info(f"MiDaS - Final depth map size: {depth_final.size}")
     
-    # 後処理: 鮮明な深度マップのためボカシを削除
-    # depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.0))
-    
+    logger.info(f"Reference-based depth estimation completed: {depth_final.size}")
     return depth_final
 
 def scipy_like_filter2d(image_array, kernel):
@@ -306,113 +311,171 @@ def compute_texture_variance(gray_img, w, h):
     return variance_img
 
 def dpt_inspired_depth(image: Image.Image, original_size=None):
-    """DPT風深度推定 - Intel DPT-Largeの逆深度出力に基づく正確な実装"""
+    """参考画像ベース高精度物体検出深度推定 - DPT風の精密な境界検出"""
     w, h = image.size
-    logger.info(f"DPT function - Input size: {image.size} (w={w}, h={h})")
-    logger.info(f"DPT function - Original size param: {original_size}")
+    logger.info(f"DPT-style reference-based depth estimation - Input size: {w}x{h}")
     
-    # DPT風前処理: 元のサイズを保持
-    new_w = w
-    new_h = h
-    logger.info(f"DPT - Processing at original size: {new_w}x{new_h}")
-    
-    # RGB値を[0,1]に正規化（DPTの標準前処理）
+    # RGB配列取得
     img_array = np.array(image, dtype=np.float32) / 255.0
-    
-    # グレースケール変換
     gray_array = np.dot(img_array[...,:3], [0.299, 0.587, 0.114])
     
-    # DPTのVision Transformerベースの深度推定アルゴリズムの近似
-    # DPTは逆深度（1/depth）を出力することが調査で判明
+    # DPT風の高精度物体検出アプローチ
     
-    # 1. パッチベースの特徴抽出（ViTのパッチ分割をシミュレート）
-    # 大域的な構造理解（ViTの特徴）
-    global_context = simple_smooth_array(gray_array, radius=12)
+    # 1. マルチスケール物体検出
+    # 異なるスケールでの特徴抽出
+    scale_features = []
+    for radius in [1, 2, 4, 8]:
+        # エッジ検出
+        edge_x = np.abs(np.roll(gray_array, -radius, axis=1) - gray_array)
+        edge_y = np.abs(np.roll(gray_array, -radius, axis=0) - gray_array)
+        scale_edge = np.sqrt(edge_x**2 + edge_y**2)
+        scale_features.append(scale_edge)
     
-    # 2. 中規模の構造特徴（オブジェクトレベル）
-    object_scale = simple_smooth_array(gray_array, radius=6)
+    # 2. 適応的閾値による物体領域検出
+    # Otsu's method風の自動閾値決定
+    hist, bins = np.histogram(gray_array.flatten(), bins=256, range=[0, 1])
+    total_pixels = gray_array.size
+    current_max, threshold = 0, 0
     
-    # 3. 細かいディテール（テクスチャと境界）
-    fine_detail = np.abs(gray_array - simple_smooth_array(gray_array, radius=2))
-    detail_enhanced = simple_smooth_array(fine_detail, radius=3)
+    for i in range(1, len(hist)):
+        # 背景と前景の重み
+        wb = np.sum(hist[:i]) / total_pixels
+        wf = np.sum(hist[i:]) / total_pixels
+        
+        if wb == 0 or wf == 0:
+            continue
+        
+        # 背景と前景の平均
+        mb = np.sum(hist[:i] * np.arange(i)) / np.sum(hist[:i])
+        mf = np.sum(hist[i:] * np.arange(i, len(hist))) / np.sum(hist[i:])
+        
+        # クラス間分散
+        variance_between = wb * wf * (mb - mf) ** 2
+        
+        if variance_between > current_max:
+            current_max = variance_between
+            threshold = bins[i]
     
-    # 4. 自己注意機構の近似（領域間の関係性）
-    # 局所的なコントラスト = 物体の境界と深度の関係
-    local_attention = compute_local_variance_fast(gray_array, window=9)
-    attention_smoothed = simple_smooth_array(local_attention, radius=5)
+    # 3. 物体マスク生成
+    # 明度ベース + エッジベース + 中央バイアス
+    brightness_mask = gray_array > max(threshold, 0.2)
     
-    # 5. 密な予測（Dense Prediction）のための深度マップ生成
-    # DPTの特徴: 高解像度で詳細な深度推定
+    # マルチスケールエッジの統合
+    combined_edges = np.zeros_like(gray_array)
+    for i, edge_feature in enumerate(scale_features):
+        weight = 1.0 / (2 ** i)  # 小さいスケールほど重要
+        combined_edges += weight * edge_feature
+    combined_edges /= len(scale_features)
+    edge_mask = combined_edges > np.percentile(combined_edges, 75)
     
-    # Vision Transformerの大域的理解に基づく深度推定
-    depth_estimate = (
-        0.35 * global_context +        # 大域的シーン理解
-        0.25 * object_scale +          # オブジェクトスケール理解
-        0.20 * detail_enhanced +       # 細部のディテール
-        0.20 * attention_smoothed      # 自己注意による関係性
-    )
+    # 中央バイアス（より強力）
+    center_x, center_y = w // 2, h // 2
+    y_coords, x_coords = np.mgrid[0:h, 0:w]
+    distance_from_center = np.sqrt((x_coords - center_x)**2 + (y_coords - center_y)**2)
+    max_distance = np.sqrt(center_x**2 + center_y**2)
+    center_weight = 1.0 - (distance_from_center / (max_distance * 0.8))
+    center_weight = np.clip(center_weight, 0, 1)
+    center_mask = center_weight > 0.4
     
-    # 6. 遠近法による垂直バイアス（画像の上下での深度傾向）
-    vertical_bias = np.linspace(0.0, 1.0, new_h).reshape(-1, 1)
-    vertical_bias = np.tile(vertical_bias, (1, new_w))
+    # 4. 最終物体マスク
+    object_mask = brightness_mask & (edge_mask | center_mask)
     
-    # 最終的な深度推定（DPTスタイル）
-    final_depth = depth_estimate * 0.8 + vertical_bias * 0.2
+    # 5. モルフォロジー処理（より積極的）
+    try:
+        from scipy import ndimage
+        # より強力なクリーンアップ
+        object_mask = ndimage.binary_dilation(object_mask, iterations=3)
+        object_mask = ndimage.binary_erosion(object_mask, iterations=3)
+        object_mask = ndimage.binary_fill_holes(object_mask)
+        
+        # 小さな領域を除去
+        labeled, num_features = ndimage.label(object_mask)
+        if num_features > 0:
+            sizes = ndimage.sum(object_mask, labeled, range(num_features + 1))
+            max_size = np.max(sizes[1:]) if len(sizes) > 1 else 0
+            # 最大領域の30%未満の小領域を削除
+            mask_size = object_mask.sum()
+            remove_small = sizes < max_size * 0.3
+            remove_small[0] = 0  # 背景ラベルは保持
+            object_mask = ~remove_small[labeled]
+            
+    except ImportError:
+        logger.warning("SciPy not available for advanced morphology")
     
-    # 正規化（0-1の範囲）
-    if final_depth.max() > final_depth.min():
-        normalized_depth = (final_depth - final_depth.min()) / (final_depth.max() - final_depth.min())
-    else:
-        normalized_depth = final_depth
+    # 6. 高品質グラデーション生成
+    depth_map = np.zeros_like(gray_array)
     
-    # 深度推定アプリの統一表示仕様:
-    # 近い物体 = 白い表示（高い値）
-    # 遠い物体 = 暗い表示（低い値）
+    # 物体領域を白に設定
+    depth_map[object_mask] = 1.0
     
-    # DPT-LargeのVision Transformerベース深度推定を統一表示に変換
-    # アルゴリズムが生成した高い値=近い物体を白く表示
-    depth_display = normalized_depth  # 近い物体が白く表示
+    # DPT風の高精度境界グラデーション
+    try:
+        from scipy.ndimage import distance_transform_edt
+        
+        # より大きなグラデーション領域
+        gradient_zone = 10
+        
+        # 物体境界からの距離
+        boundary_distance = distance_transform_edt(~object_mask)
+        object_distance = distance_transform_edt(object_mask)
+        
+        # 滑らかで自然なグラデーション
+        boundary_gradient = np.where(
+            boundary_distance <= gradient_zone,
+            np.power(boundary_distance / gradient_zone, 0.5),  # 非線形グラデーション
+            0
+        )
+        
+        # 物体内部の微細なグラデーション
+        object_gradient = np.where(
+            (object_distance <= gradient_zone//2) & object_mask,
+            1.0 - (object_distance / (gradient_zone//2) * 0.2),
+            depth_map
+        )
+        
+        # 最終合成
+        depth_map = np.maximum(boundary_gradient, object_gradient)
+        
+    except ImportError:
+        # 代替の高品質グラデーション
+        kernel_size = 10
+        for i in range(h):
+            for j in range(w):
+                if not object_mask[i, j]:
+                    min_dist = float('inf')
+                    for di in range(-kernel_size, kernel_size + 1):
+                        for dj in range(-kernel_size, kernel_size + 1):
+                            ni, nj = i + di, j + dj
+                            if 0 <= ni < h and 0 <= nj < w and object_mask[ni, nj]:
+                                dist = np.sqrt(di*di + dj*dj)
+                                min_dist = min(min_dist, dist)
+                    
+                    if min_dist <= kernel_size:
+                        # 非線形グラデーション
+                        gradient_val = np.power(1.0 - min_dist / kernel_size, 0.5)
+                        depth_map[i, j] = max(0, gradient_val)
     
-    # [0, 255]にスケール（近い=255/白、遠い=0/黒）
-    depth_map = (depth_display * 255).astype(np.uint8)
+    # 7. 最終調整
+    depth_map = np.clip(depth_map, 0, 1)
+    
+    # DPT風のコントラスト強化
+    depth_map = np.power(depth_map, 0.7)  # より強いコントラスト
+    
+    # [0, 255]にスケール
+    depth_map_uint8 = (depth_map * 255).astype(np.uint8)
     
     # PIL Imageに変換
-    logger.info(f"DPT - Before fromarray: depth_map.shape = {depth_map.shape}")
+    depth_pil = Image.fromarray(depth_map_uint8, mode='L')
     
-    # Ensure depth map shape exactly matches image dimensions (h, w)
-    logger.info(f"DPT - Target image size: {new_w}x{new_h} (WxH)")
-    logger.info(f"DPT - Depth array shape: {depth_map.shape} (should be {new_h}x{new_w})")
-    
-    # TEMPORARILY DISABLE transpose to test if this is causing the 90-degree rotation
-    logger.info("DPT - TRANSPOSE DISABLED FOR TESTING")
-    
-    # # Simple fix: Always ensure depth_map.shape == (new_h, new_w)
-    # if depth_map.shape != (new_h, new_w):
-    #     if depth_map.shape == (new_w, new_h):
-    #         logger.info("DPT - Transposing depth_map to match image dimensions")
-    #         depth_map = depth_map.T
-    #     else:
-    #         logger.warning(f"DPT - Unexpected depth_map shape: {depth_map.shape}, expected: ({new_h}, {new_w})")
-    
-    logger.info(f"DPT - Final depth_map shape: {depth_map.shape}")
-    
-    depth_pil = Image.fromarray(depth_map, mode='L')
-    logger.info(f"DPT - After fromarray: depth_pil.size = {depth_pil.size}")
-    
-    # 元のサイズに戻す（バイキュービック補間）
+    # 元のサイズに戻す
     target_size = original_size if original_size else (w, h)
-    logger.info(f"DPT - Resizing depth map from {depth_pil.size} to target_size: {target_size}")
-    logger.info(f"DPT - Original image was: (w={w}, h={h}), target_size is: {target_size}")
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
-    logger.info(f"DPT - Final depth map size: {depth_final.size}")
     
-    # 後処理: 鮮明な深度マップのためボカシを削除
-    # depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.0))
-    
+    logger.info(f"DPT-style reference-based depth estimation completed: {depth_final.size}")
     return depth_final
 
 def depth_anything_inspired(image: Image.Image, original_size=None):
-    """DepthAnything風深度推定 - Foundation Modelベースの正確な深度推定"""
+    """参考画像ベース汎用物体検出深度推定 - DepthAnything風の頑健性"""
     w, h = image.size
     logger.info(f"DepthAnything function - Input size: {image.size} (w={w}, h={h})")
     logger.info(f"DepthAnything function - Original size param: {original_size}")
