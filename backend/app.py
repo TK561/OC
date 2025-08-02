@@ -158,24 +158,22 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
         combined_features += weights[i] * normalized
     
     # 垂直位置バイアス（遠近法）
-    height_bias = np.linspace(1.0, 0.3, new_h).reshape(-1, 1)
+    # 上=遠い(0.2)、下=近い(1.0)
+    height_bias = np.linspace(0.2, 1.0, new_h).reshape(-1, 1)
     height_bias = np.tile(height_bias, (1, new_w))
     
     # 最終的な深度マップ
     pseudo_depth = combined_features * height_bias
     
-    # MiDaSスタイルの逆深度変換
-    pseudo_inverse_depth = 1.0 / (pseudo_depth + 0.1)  # 逆深度
-    
-    # 正規化
-    if pseudo_inverse_depth.max() > pseudo_inverse_depth.min():
-        normalized = (pseudo_inverse_depth - pseudo_inverse_depth.min()) / (pseudo_inverse_depth.max() - pseudo_inverse_depth.min())
+    # 正規化（0-1の範囲に）
+    if pseudo_depth.max() > pseudo_depth.min():
+        normalized_depth = (pseudo_depth - pseudo_depth.min()) / (pseudo_depth.max() - pseudo_depth.min())
     else:
-        normalized = pseudo_inverse_depth
+        normalized_depth = pseudo_depth
     
-    # MiDaSは逆深度を出力するため、大きな値=近い
-    # 白=近い、黒=遠いにするため、値を反転する
-    normalized = 1.0 - normalized  # MiDaSも反転が必要
+    # 深度値の解釈：現在は大きい値=遠い、小さい値=近い
+    # 白=近い(255)、黒=遠い(0)にするため反転
+    normalized = 1.0 - normalized_depth
     
     # [0, 255]にスケール
     depth_map = (normalized * 255).astype(np.uint8)
@@ -366,11 +364,13 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     fused_features = scale_features[0]
     
     # 垂直バイアス（透視）
-    height_bias = np.linspace(1.0, 0.4, new_h).reshape(-1, 1)
+    # 上=遠い(0.2)、下=近い(1.0)
+    height_bias = np.linspace(0.2, 1.0, new_h).reshape(-1, 1)
     height_bias = np.tile(height_bias, (1, new_w))
     
     # グラデーション効果を追加（写真の上部は空、下部は地面の傾向）
-    sky_ground_gradient = np.linspace(0.2, 0.8, new_h).reshape(-1, 1)
+    # 上=遠い(0.0)、下=近い(1.0)
+    sky_ground_gradient = np.linspace(0.0, 1.0, new_h).reshape(-1, 1)
     sky_ground_gradient = np.tile(sky_ground_gradient, (1, new_w))
     
     # 最終的な深度マップ（DPT風）
@@ -769,7 +769,10 @@ def generate_pointcloud(original_image, depth_image):
                 x_norm = (x / w - 0.5) * scale_x
                 # Y軸の反転を取り除いて180度回転を修正
                 y_norm = (y / h - 0.5) * scale_y
-                z_norm = depth_val * 2 - 1
+                # 深度値: 白(255)=近い=正のZ、黒(0)=遠い=負のZ
+                # depth_val: 0.0(黒)～1.0(白)
+                # z_norm: -1.0(遠い)～1.0(近い)
+                z_norm = (depth_val * 2 - 1) * 0.5  # スケールを調整
                 
                 points.append([x_norm, y_norm, z_norm])
                 r, g, b = orig_pixels[x, y]
