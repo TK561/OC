@@ -11,11 +11,18 @@ import time
 from typing import Optional
 import requests
 import numpy as np
+
+# Setup logging first
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 try:
     import cv2
     CV2_AVAILABLE = True
+    logger.info("OpenCV available for image processing")
 except ImportError:
     CV2_AVAILABLE = False
+    logger.warning("OpenCV not available, using fallback edge detection")
     import warnings
     warnings.warn("OpenCV not available, using fallback edge detection")
 
@@ -25,10 +32,6 @@ TRANSFORMERS_AVAILABLE = False
 logger.info("HuggingFace models disabled due to Railway image size limits - using optimized fallback")
 
 app = FastAPI(title="DPT/MiDaS/DepthAnything Lightweight API")
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # CORS設定
 app.add_middleware(
