@@ -871,38 +871,32 @@ def apply_post_processing(image: Image.Image, gamma: float = 1.0, blur_radius: f
     
     return processed_image
 
-def depth_edge_processing_pipeline(
-    image: Image.Image, 
+def enhanced_depth_processing_pipeline(
+    image: Image.Image,
     model_choice: str = "LiheYoung/depth-anything-small-hf",
-    edge_low_threshold: int = 50,
-    edge_high_threshold: int = 150,
     invert_depth: bool = True,
-    depth_gamma: float = 1.0,
-    depth_contrast: float = 1.0,
-    composition_mode: str = "multiply",
-    post_gamma: float = 1.0,
-    post_blur: float = 0.0
+    depth_gamma: float = 0.8,
+    depth_contrast: float = 1.2,
+    smoothing_strength: float = 0.0,
+    gradient_enhancement: float = 1.0
 ) -> dict:
     """
-    深度推定とエッジ検出を組み合わせた完全な処理パイプライン
+    画像全体に対する高品質深度推定と美しいグラデーション処理パイプライン
     
     Args:
         image: 入力画像
         model_choice: 深度推定モデルの選択
-        edge_low_threshold: Cannyエッジ検出の低閾値
-        edge_high_threshold: Cannyエッジ検出の高閾値
-        invert_depth: 深度マップを反転するか
-        depth_gamma: 深度マップのガンマ値
-        depth_contrast: 深度マップのコントラスト
-        composition_mode: 合成方法 ("multiply", "conditional", "alpha_blend")
-        post_gamma: 後処理のガンマ値
-        post_blur: 後処理のブラー半径
+        invert_depth: 深度マップを反転するか (近い=白、遠い=黒)
+        depth_gamma: 深度マップのガンマ補正値
+        depth_contrast: 深度マップのコントラスト強度
+        smoothing_strength: 滑らかさ調整 (0.0=なし, 1.0=最大)
+        gradient_enhancement: グラデーション強化レベル
     
     Returns:
         dict: 処理結果の辞書
     """
     original_size = image.size
-    logger.info(f"深度エッジ処理パイプライン開始 - 入力サイズ: {original_size}")
+    logger.info(f"高品質深度グラデーション処理開始 - 入力サイズ: {original_size}")
     
     # ステップ1: 深度推定
     if model_choice == "Intel/dpt-large":
@@ -914,41 +908,45 @@ def depth_edge_processing_pipeline(
     
     logger.info(f"深度推定完了 - サイズ: {depth_map.size}")
     
-    # ステップ2: エッジ検出
-    edge_map = canny_edge_detection(image, edge_low_threshold, edge_high_threshold)
-    logger.info(f"エッジ検出完了 - サイズ: {edge_map.size}")
-    
-    # ステップ3: 深度マップの反転と調整
+    # ステップ2: 深度マップの反転
     if invert_depth:
         depth_map = invert_depth_map(depth_map)
-        logger.info("深度マップを反転")
+        logger.info("深度マップを反転 (近い=白、遠い=黒)")
     
-    depth_map = adjust_depth_contrast(depth_map, depth_gamma, depth_contrast)
-    logger.info(f"深度マップ調整完了 - ガンマ: {depth_gamma}, コントラスト: {depth_contrast}")
+    # ステップ3: 品質向上処理
+    # ガンマ補正とコントラスト調整
+    enhanced_depth = adjust_depth_contrast(depth_map, depth_gamma, depth_contrast)
+    logger.info(f"深度品質向上完了 - ガンマ: {depth_gamma}, コントラスト: {depth_contrast}")
     
-    # ステップ4: マスク合成
-    composed_image = compose_edge_depth_mask(edge_map, depth_map, composition_mode)
-    logger.info(f"マスク合成完了 - 方法: {composition_mode}")
+    # ステップ4: グラデーション強化
+    if gradient_enhancement != 1.0:
+        depth_array = np.array(enhanced_depth, dtype=np.float32) / 255.0
+        # ヒストグラム均等化による階調強化
+        depth_array = np.power(depth_array, 1.0 / gradient_enhancement)
+        enhanced_depth = Image.fromarray((depth_array * 255).astype(np.uint8), mode='L')
+        logger.info(f"グラデーション強化完了 - レベル: {gradient_enhancement}")
     
-    # ステップ5: 後処理
-    final_image = apply_post_processing(composed_image, post_gamma, post_blur)
-    logger.info(f"後処理完了 - ガンマ: {post_gamma}, ブラー: {post_blur}")
+    # ステップ5: 軽微なスムージング (オプション)
+    final_image = enhanced_depth
+    if smoothing_strength > 0:
+        # 非常に軽微なスムージングのみ (境界を保持)
+        blur_radius = smoothing_strength * 0.5  # 最大0.5ピクセル
+        final_image = enhanced_depth.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+        logger.info(f"軽微なスムージング適用 - 強度: {smoothing_strength}")
     
     return {
         "original_image": image,
-        "depth_map": depth_map,
-        "edge_map": edge_map,
-        "composed_image": composed_image,
+        "raw_depth_map": depth_map,
+        "enhanced_depth_map": enhanced_depth,
         "final_image": final_image,
         "processing_info": {
             "model": model_choice,
-            "edge_thresholds": [edge_low_threshold, edge_high_threshold],
             "depth_inverted": invert_depth,
             "depth_gamma": depth_gamma,
             "depth_contrast": depth_contrast,
-            "composition_mode": composition_mode,
-            "post_gamma": post_gamma,
-            "post_blur": post_blur
+            "smoothing_strength": smoothing_strength,
+            "gradient_enhancement": gradient_enhancement,
+            "processing_type": "pure_depth_gradient"
         }
     }
 
@@ -1213,24 +1211,21 @@ async def clear_cache():
     model_cache.clear()
     return {"success": True, "message": "Model cache cleared"}
 
-@app.post("/api/depth-edge-processing")
-async def depth_edge_processing(
+@app.post("/api/enhanced-depth-processing")
+async def enhanced_depth_processing(
     file: UploadFile = File(...),
     model: Optional[str] = Form("LiheYoung/depth-anything-small-hf"),
-    edge_low_threshold: Optional[int] = Form(50),
-    edge_high_threshold: Optional[int] = Form(150),
     invert_depth: Optional[bool] = Form(True),
-    depth_gamma: Optional[float] = Form(1.0),
-    depth_contrast: Optional[float] = Form(1.0),
-    composition_mode: Optional[str] = Form("multiply"),
-    post_gamma: Optional[float] = Form(1.0),
-    post_blur: Optional[float] = Form(0.0)
+    depth_gamma: Optional[float] = Form(0.8),
+    depth_contrast: Optional[float] = Form(1.2),
+    smoothing_strength: Optional[float] = Form(0.0),
+    gradient_enhancement: Optional[float] = Form(1.0)
 ):
-    """深度推定とエッジ検出を組み合わせた画像処理API"""
+    """高品質深度推定とグラデーション処理API"""
     try:
         # 画像読み込み
         contents = await file.read()
-        logger.info(f"エッジ深度処理開始 - ファイルサイズ: {len(contents)} bytes")
+        logger.info(f"高品質深度処理開始 - ファイルサイズ: {len(contents)} bytes")
         
         if len(contents) == 0:
             raise ValueError("空のファイルがアップロードされました")
@@ -1260,18 +1255,15 @@ async def depth_edge_processing(
             logger.info(f"メモリ最適化のためリサイズ: {image.size} -> ({new_width}, {new_height})")
             image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
-        # 処理パイプライン実行
-        result = depth_edge_processing_pipeline(
+        # 高品質深度処理パイプライン実行
+        result = enhanced_depth_processing_pipeline(
             image=image,
             model_choice=model,
-            edge_low_threshold=edge_low_threshold,
-            edge_high_threshold=edge_high_threshold,
             invert_depth=invert_depth,
             depth_gamma=depth_gamma,
             depth_contrast=depth_contrast,
-            composition_mode=composition_mode,
-            post_gamma=post_gamma,
-            post_blur=post_blur
+            smoothing_strength=smoothing_strength,
+            gradient_enhancement=gradient_enhancement
         )
         
         # Base64変換関数
@@ -1285,19 +1277,18 @@ async def depth_edge_processing(
         response_data = {
             "success": True,
             "originalUrl": image_to_base64(result["original_image"]),
-            "depthMapUrl": image_to_base64(result["depth_map"]),
-            "edgeMapUrl": image_to_base64(result["edge_map"]),
-            "composedImageUrl": image_to_base64(result["composed_image"]),
+            "rawDepthMapUrl": image_to_base64(result["raw_depth_map"]),
+            "enhancedDepthMapUrl": image_to_base64(result["enhanced_depth_map"]),
             "finalImageUrl": image_to_base64(result["final_image"]),
             "processing_info": result["processing_info"],
             "resolution": f"{image.size[0]}x{image.size[1]}"
         }
         
-        logger.info("エッジ深度処理完了")
+        logger.info("高品質深度処理完了")
         return JSONResponse(response_data)
         
     except Exception as e:
-        logger.error(f"エッジ深度処理エラー: {e}")
+        logger.error(f"高品質深度処理エラー: {e}")
         raise HTTPException(status_code=500, detail=f"処理に失敗しました: {str(e)}")
 
 

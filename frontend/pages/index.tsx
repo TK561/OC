@@ -3,7 +3,7 @@ import ImageUpload from '@/components/ImageUpload'
 import DepthViewer from '@/components/DepthViewer'
 import ThreeScene from '@/components/ThreeScene'
 import ControlPanel from '@/components/ControlPanel'
-import { DepthEstimationResponse, ViewerSettings, EdgeDepthProcessingResponse } from '@/shared/types'
+import { DepthEstimationResponse, ViewerSettings, EnhancedDepthProcessingResponse } from '@/shared/types'
 
 export default function Home() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
@@ -32,9 +32,9 @@ export default function Home() {
     setProcessingStatus('')
   }
 
-  const processEdgeDepthEnhancement = async (originalImageUrl: string, model: string): Promise<DepthEstimationResponse | null> => {
+  const processEnhancedDepthGradient = async (originalImageUrl: string, model: string): Promise<DepthEstimationResponse | null> => {
     try {
-      console.log(`Starting edge-depth processing for model: ${model}`)
+      console.log(`Starting enhanced depth gradient processing for model: ${model}`)
       
       // 画像をBlobに変換
       const response = await fetch(originalImageUrl)
@@ -44,50 +44,47 @@ export default function Home() {
       const formData = new FormData()
       formData.append('file', blob, 'image.jpg')
       formData.append('model', model)
-      formData.append('edge_low_threshold', '50')
-      formData.append('edge_high_threshold', '150')
       formData.append('invert_depth', 'true')
-      formData.append('depth_gamma', '1.0')
-      formData.append('depth_contrast', '1.0')
-      formData.append('composition_mode', 'multiply')
-      formData.append('post_gamma', '1.0')
-      formData.append('post_blur', '0.0')
+      formData.append('depth_gamma', '0.8')
+      formData.append('depth_contrast', '1.2')
+      formData.append('smoothing_strength', '0.0')
+      formData.append('gradient_enhancement', '1.0')
       
-      const edgeResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/depth-edge-processing`, {
+      const enhancedResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/enhanced-depth-processing`, {
         method: 'POST',
         body: formData,
       })
       
-      if (!edgeResponse.ok) {
-        console.error(`Edge processing failed for ${model}:`, edgeResponse.status)
+      if (!enhancedResponse.ok) {
+        console.error(`Enhanced depth processing failed for ${model}:`, enhancedResponse.status)
         return null
       }
       
-      const edgeResult: EdgeDepthProcessingResponse = await edgeResponse.json()
-      console.log(`Edge processing completed for ${model}:`, edgeResult)
+      const enhancedResult: EnhancedDepthProcessingResponse = await enhancedResponse.json()
+      console.log(`Enhanced depth processing completed for ${model}:`, enhancedResult)
       
-      if (!edgeResult.success) {
-        console.error(`Edge processing returned failure for ${model}`)
+      if (!enhancedResult.success) {
+        console.error(`Enhanced depth processing returned failure for ${model}`)
         return null
       }
       
       // DepthEstimationResponse形式に変換（最終処理画像を使用）
-      const enhancedResult: DepthEstimationResponse = {
-        depthMapUrl: edgeResult.finalImageUrl, // エッジ処理済みの最終画像
-        originalUrl: edgeResult.originalUrl,
+      const finalResult: DepthEstimationResponse = {
+        depthMapUrl: enhancedResult.finalImageUrl, // 高品質グラデーション画像
+        originalUrl: enhancedResult.originalUrl,
         success: true,
-        model: edgeResult.processing_info.model,
-        resolution: edgeResult.resolution,
-        note: 'Enhanced with edge detection and depth processing',
-        algorithms: ['Edge Detection', 'Depth Enhancement', 'Gradient Processing'],
-        implementation: 'Custom Edge-Depth Pipeline',
-        features: ['Canny Edge Detection', 'Depth Inversion', 'Mask Composition']
+        model: enhancedResult.processing_info.model,
+        resolution: enhancedResult.resolution,
+        note: 'Enhanced with high-quality depth gradient processing',
+        algorithms: ['Depth Enhancement', 'Gradient Processing', 'Quality Improvement'],
+        implementation: 'Pure Depth Gradient Pipeline',
+        features: ['Depth Inversion', 'Gamma Correction', 'Contrast Enhancement', 'Gradient Smoothing']
       }
       
-      return enhancedResult
+      return finalResult
       
     } catch (error) {
-      console.error(`Edge processing error for ${model}:`, error)
+      console.error(`Enhanced depth processing error for ${model}:`, error)
       return null
     }
   }
@@ -173,27 +170,27 @@ export default function Home() {
         throw new Error(`Backend API returned invalid result: ${JSON.stringify(result)}`)
       }
       
-      // エッジ処理を実行
+      // 高品質深度グラデーション処理を実行
       setProcessingProgress(75)
-      setProcessingStatus('エッジ検出+深度処理実行中...')
+      setProcessingStatus('高品質深度グラデーション処理実行中...')
       
-      const enhancedResult = await processEdgeDepthEnhancement(uploadedImage, selectedModel)
+      const enhancedResult = await processEnhancedDepthGradient(uploadedImage, selectedModel)
       
       if (enhancedResult) {
-        // エッジ処理済み結果を使用
+        // 高品質グラデーション処理済み結果を使用
         const finalResult = {
           ...enhancedResult,
           pointcloudData: result.pointcloudData // 元の3Dデータは保持
         }
         
-        console.log('Enhanced result with edge processing:', finalResult)
+        console.log('Enhanced result with depth gradient processing:', finalResult)
         setDepthResult(finalResult)
         setDepthResults(prev => ({...prev, [selectedModel]: finalResult}))
         setProcessingProgress(100)
-        setProcessingStatus('エッジ処理完了！')
+        setProcessingStatus('高品質グラデーション処理完了！')
       } else {
-        // エッジ処理に失敗した場合は元の結果を使用
-        console.warn('Edge processing failed, using original depth result')
+        // 高品質処理に失敗した場合は元の結果を使用
+        console.warn('Enhanced depth processing failed, using original depth result')
         const newResult = {
           depthMapUrl: result.depthMapUrl,
           originalUrl: result.originalUrl || uploadedImage,
@@ -214,7 +211,7 @@ export default function Home() {
       }
       
       setActiveTab('depth')
-      console.log('✅ Depth estimation with edge enhancement completed!')
+      console.log('✅ Depth estimation with gradient enhancement completed!')
     } catch (error) {
       console.error('Depth estimation failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -302,19 +299,19 @@ export default function Home() {
             console.log(`Compare mode - ${model} result:`, result)
             
             if (result.success && result.depthMapUrl) {
-              // エッジ処理を実行
-              const enhancedResult = await processEdgeDepthEnhancement(uploadedImage, model)
+              // 高品質深度グラデーション処理を実行
+              const enhancedResult = await processEnhancedDepthGradient(uploadedImage, model)
               
               if (enhancedResult) {
-                // エッジ処理済み結果を使用
+                // 高品質グラデーション処理済み結果を使用
                 const modelResult = {
                   ...enhancedResult,
                   pointcloudData: result.pointcloudData // 元の3Dデータは保持
                 }
-                console.log(`Compare mode - ${model} enhanced result:`, modelResult)
+                console.log(`Compare mode - ${model} gradient enhanced result:`, modelResult)
                 newResults[model] = modelResult
               } else {
-                // エッジ処理に失敗した場合は元の結果を使用
+                // 高品質処理に失敗した場合は元の結果を使用
                 const modelResult = {
                   depthMapUrl: result.depthMapUrl,
                   originalUrl: result.originalUrl || uploadedImage,
