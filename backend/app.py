@@ -35,28 +35,28 @@ async def add_corp_header(request, call_next):
     response.headers["Cross-Origin-Resource-Policy"] = "cross-origin"
     return response
 
-# Pillow-only implementations (Railway compatible) - 3 core models
+# 深度推定モデル設定 - 3つの統合モデル選択肢
 MODEL_CONFIGS = {
-    "Intel/dpt-large": {
-        "name": "DPT-Large",
-        "type": "pillow_dpt_large", 
-        "size_mb": 0,
-        "input_size": 384,
-        "description": "DPT-Large Pillow implementation"
-    },
     "Intel/dpt-hybrid-midas": {
-        "name": "MiDaS v3.1 (DPT Hybrid)",
+        "name": "MiDaS v3.1",
         "type": "pillow_midas",
         "size_mb": 0,
         "input_size": 384,
-        "description": "MiDaS v3.1 Pillow implementation"
+        "description": "MiDaS v3.1 - エッジ検出と構造理解"
+    },
+    "Intel/dpt-large": {
+        "name": "DPT-Large", 
+        "type": "pillow_dpt_large",
+        "size_mb": 0,
+        "input_size": 384,
+        "description": "DPT-Large - Vision Transformer深度推定"
     },
     "LiheYoung/depth-anything-small-hf": {
-        "name": "DepthAnything v1 Small",
+        "name": "DepthAnything v1",
         "type": "pillow_depth_anything_v1",
         "size_mb": 0,
         "input_size": 518,
-        "description": "DepthAnything v1 Small Pillow implementation"
+        "description": "DepthAnything v1 - Foundation Model深度推定"
     }
 }
 
@@ -115,7 +115,8 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     
     # 2. エッジベースの物体境界検出
     # 明確な境界を持つ物体は前景（近い）
-    edges = np.abs(gray_array - gaussian_blur_array(gray_array, radius=1))
+    # エッジ検出：鮮明な境界検出
+    edges = np.abs(gray_array - simple_smooth_array(gray_array, radius=1))
     edge_depth = edges
     
     # 3. コントラストベースの深度推定
@@ -221,24 +222,32 @@ def scipy_like_filter2d(image_array, kernel):
     
     return result
 
-def gaussian_blur_array(image_array, radius):
-    """NumPy配列でのガウシアンブラー近似"""
-    # 簡易ガウシアンカーネル
-    size = max(3, int(radius * 2) + 1)
-    if size % 2 == 0:
-        size += 1
+def simple_smooth_array(image_array, radius):
+    """簡単な平滑化処理（ボカシなし、エッジ保持）"""
+    # ボカシの代わりに非常に軽微な平滑化のみ
+    if radius <= 1:
+        return image_array
     
-    center = size // 2
-    kernel = np.zeros((size, size))
+    # 単純な平均フィルタ（3x3のみ）で最小限の平滑化
+    h, w = image_array.shape
+    result = image_array.copy()
     
-    for i in range(size):
-        for j in range(size):
-            x, y = i - center, j - center
-            kernel[i, j] = np.exp(-(x*x + y*y) / (2 * radius * radius))
+    for i in range(1, h-1):
+        for j in range(1, w-1):
+            # 軽微な平滑化のみ（エッジを保持）
+            center_weight = 0.8
+            neighbor_weight = 0.2 / 8
+            
+            result[i, j] = (
+                center_weight * image_array[i, j] +
+                neighbor_weight * (
+                    image_array[i-1, j-1] + image_array[i-1, j] + image_array[i-1, j+1] +
+                    image_array[i, j-1] + image_array[i, j+1] +
+                    image_array[i+1, j-1] + image_array[i+1, j] + image_array[i+1, j+1]
+                )
+            )
     
-    kernel /= kernel.sum()
-    
-    return scipy_like_filter2d(image_array, kernel)
+    return result
 
 def compute_local_variance_fast(image_array, window):
     """高速ローカル分散計算"""
@@ -318,19 +327,19 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     
     # 1. パッチベースの特徴抽出（ViTのパッチ分割をシミュレート）
     # 大域的な構造理解（ViTの特徴）
-    global_context = gaussian_blur_array(gray_array, radius=12)
+    global_context = simple_smooth_array(gray_array, radius=12)
     
     # 2. 中規模の構造特徴（オブジェクトレベル）
-    object_scale = gaussian_blur_array(gray_array, radius=6)
+    object_scale = simple_smooth_array(gray_array, radius=6)
     
     # 3. 細かいディテール（テクスチャと境界）
-    fine_detail = np.abs(gray_array - gaussian_blur_array(gray_array, radius=2))
-    detail_enhanced = gaussian_blur_array(fine_detail, radius=3)
+    fine_detail = np.abs(gray_array - simple_smooth_array(gray_array, radius=2))
+    detail_enhanced = simple_smooth_array(fine_detail, radius=3)
     
     # 4. 自己注意機構の近似（領域間の関係性）
     # 局所的なコントラスト = 物体の境界と深度の関係
     local_attention = compute_local_variance_fast(gray_array, window=9)
-    attention_smoothed = gaussian_blur_array(local_attention, radius=5)
+    attention_smoothed = simple_smooth_array(local_attention, radius=5)
     
     # 5. 密な予測（Dense Prediction）のための深度マップ生成
     # DPTの特徴: 高解像度で詳細な深度推定
@@ -428,9 +437,9 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     
     # 2. マルチスケールのテクスチャ分析
     # 近い物体ほど詳細なテクスチャが見える
-    texture_fine = np.abs(gray_array - gaussian_blur_array(gray_array, radius=1))
-    texture_medium = np.abs(gray_array - gaussian_blur_array(gray_array, radius=3))
-    texture_coarse = np.abs(gray_array - gaussian_blur_array(gray_array, radius=6))
+    texture_fine = np.abs(gray_array - simple_smooth_array(gray_array, radius=1))
+    texture_medium = np.abs(gray_array - simple_smooth_array(gray_array, radius=3))
+    texture_coarse = np.abs(gray_array - simple_smooth_array(gray_array, radius=6))
     
     # テクスチャの密度（近い物体ほど高い）
     texture_density = (
@@ -438,15 +447,15 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
         0.3 * texture_medium +
         0.2 * texture_coarse
     )
-    texture_smoothed = gaussian_blur_array(texture_density, radius=4)
+    texture_smoothed = simple_smooth_array(texture_density, radius=4)
     
     # 3. 大域的なシーン理解（Foundation Modelの特徴）
     # 大きな構造の認識
-    global_structure = gaussian_blur_array(gray_array, radius=10)
+    global_structure = simple_smooth_array(gray_array, radius=10)
     
     # 4. 局所的なコントラスト分析
     local_contrast = compute_local_variance_fast(gray_array, window=7)
-    contrast_smoothed = gaussian_blur_array(local_contrast, radius=5)
+    contrast_smoothed = simple_smooth_array(local_contrast, radius=5)
     
     # 5. 空間的位置による深度バイアス
     # 通常の写真: 上部=遠い（空）、下部=近い（地面）
@@ -588,9 +597,9 @@ def depth_anything_v2_base(image: Image.Image):
             
             depth_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
     
-    # Apply smoothing and contrast enhancement
-    result = depth_img.filter(ImageFilter.GaussianBlur(radius=1))
-    result = ImageOps.autocontrast(result)
+    # 鮮明な深度マップのためボカシを削除
+    # result = depth_img.filter(ImageFilter.GaussianBlur(radius=1))
+    result = ImageOps.autocontrast(depth_img)
     
     return result
 
@@ -643,8 +652,8 @@ def depthpro_inspired(image: Image.Image):
             
             depth_pixels[x, y] = min(255, max(0, int(depth_value * 255)))
     
-    # Metric depth post-processing
-    depth_img = depth_img.filter(ImageFilter.GaussianBlur(radius=2))
+    # 鮮明な深度マップのためボカシを削除
+    # depth_img = depth_img.filter(ImageFilter.GaussianBlur(radius=2))
     depth_img = ImageOps.autocontrast(depth_img)
     
     return depth_img
@@ -785,7 +794,7 @@ async def root():
             }
             for k, v in MODEL_CONFIGS.items()
         ],
-        "default_model": "Intel/dpt-large",
+        "default_model": "Intel/dpt-hybrid-midas",
         "version": "4.0.0"
     }
 
@@ -805,7 +814,7 @@ async def predict_depth(
     try:
         # Default model selection (match frontend default)
         if model is None or model not in MODEL_CONFIGS:
-            model = "Intel/dpt-large"
+            model = "Intel/dpt-hybrid-midas"
         
         logger.info(f"Processing with model: {model}")
         

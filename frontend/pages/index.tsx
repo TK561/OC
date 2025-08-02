@@ -12,7 +12,7 @@ export default function Home() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingProgress, setProcessingProgress] = useState(0)
   const [processingStatus, setProcessingStatus] = useState('')
-  const [selectedModel, setSelectedModel] = useState('Intel/dpt-large')
+  const [selectedModel, setSelectedModel] = useState('Intel/dpt-hybrid-midas')
   const [compareMode, setCompareMode] = useState(false)
   const [showModelInfo, setShowModelInfo] = useState(false)
   const [viewerSettings, setViewerSettings] = useState<ViewerSettings>({
@@ -155,8 +155,8 @@ export default function Home() {
     if (!uploadedImage) return
 
     const models = [
-      'Intel/dpt-large',
-      'Intel/dpt-hybrid-midas', 
+      'Intel/dpt-hybrid-midas',
+      'Intel/dpt-large', 
       'LiheYoung/depth-anything-small-hf'
     ]
 
@@ -168,8 +168,8 @@ export default function Home() {
     try {
       for (let i = 0; i < models.length; i++) {
         const model = models[i]
-        const modelName = model === 'Intel/dpt-large' ? 'DPT-Large' :
-                         model === 'Intel/dpt-hybrid-midas' ? 'MiDaS' :
+        const modelName = model === 'Intel/dpt-hybrid-midas' ? 'MiDaS' :
+                         model === 'Intel/dpt-large' ? 'DPT-Large' :
                          'DepthAnything'
         
         setProcessingProgress(Math.round((i / models.length) * 90))
@@ -296,9 +296,9 @@ export default function Home() {
                 title="深度推定モデル選択"
                 aria-label="深度推定に使用するモデルを選択してください"
               >
-                <option value="Intel/dpt-large">DPT-Large (高精度・1.3GB)</option>
-                <option value="Intel/dpt-hybrid-midas">MiDaS v3.1 (高速・470MB)</option>
-                <option value="LiheYoung/depth-anything-small-hf">DepthAnything v1 (汎用・244MB)</option>
+                <option value="Intel/dpt-hybrid-midas">MiDaS v3.1 - エッジ検出と構造理解</option>
+                <option value="Intel/dpt-large">DPT-Large - Vision Transformer深度推定</option>
+                <option value="LiheYoung/depth-anything-small-hf">DepthAnything v1 - Foundation Model深度推定</option>
               </select>
               
               {/* 情報ボタン */}
@@ -325,17 +325,6 @@ export default function Home() {
                     </button>
                   </div>
                   
-                  {selectedModel === 'Intel/dpt-large' && (
-                    <div>
-                      <h4 className="font-semibold text-gray-900 mb-3">DPT-Large (Dense Prediction Transformer)</h4>
-                      <ul className="space-y-2 text-gray-600">
-                        <li>• <strong>技術:</strong> Vision Transformer (ViT) ベース</li>
-                        <li>• <strong>特徴:</strong> 細かい境界線と物体の輪郭を正確に検出</li>
-                        <li>• <strong>得意:</strong> 建築物、家具、複雑な構造物</li>
-                        <li>• <strong>応用:</strong> ロボット視覚、AR/VR、自動運転</li>
-                      </ul>
-                    </div>
-                  )}
                   {selectedModel === 'Intel/dpt-hybrid-midas' && (
                     <div>
                       <h4 className="font-semibold text-gray-900 mb-3">MiDaS v3.1 (Mixed Data Sampling)</h4>
@@ -344,6 +333,17 @@ export default function Home() {
                         <li>• <strong>特徴:</strong> 滑らかで自然な深度変化</li>
                         <li>• <strong>得意:</strong> 風景、人物、多様なシーン</li>
                         <li>• <strong>応用:</strong> 写真編集、映像制作、バーチャル背景</li>
+                      </ul>
+                    </div>
+                  )}
+                  {selectedModel === 'Intel/dpt-large' && (
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-3">DPT-Large (Dense Prediction Transformer)</h4>
+                      <ul className="space-y-2 text-gray-600">
+                        <li>• <strong>技術:</strong> Vision Transformer (ViT) ベース</li>
+                        <li>• <strong>特徴:</strong> 細かい境界線と物体の輪郭を正確に検出</li>
+                        <li>• <strong>得意:</strong> 建築物、家具、複雑な構造物</li>
+                        <li>• <strong>応用:</strong> ロボット視覚、AR/VR、自動運転</li>
                       </ul>
                     </div>
                   )}
@@ -509,8 +509,8 @@ export default function Home() {
                       {Object.entries(depthResults).map(([modelName, result]) => (
                         <div key={modelName} className="border border-gray-200 rounded-lg p-3">
                           <h4 className="text-sm font-medium text-gray-900 mb-2">
-                            {modelName === 'Intel/dpt-large' ? 'DPT-Large' :
-                             modelName === 'Intel/dpt-hybrid-midas' ? 'MiDaS v3.1' :
+                            {modelName === 'Intel/dpt-hybrid-midas' ? 'MiDaS v3.1' :
+                             modelName === 'Intel/dpt-large' ? 'DPT-Large' :
                              modelName === 'LiheYoung/depth-anything-small-hf' ? 'DepthAnything' :
                              modelName}
                           </h4>
