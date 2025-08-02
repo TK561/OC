@@ -132,21 +132,33 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     sharp_edges = np.abs(gray_array - gaussian_blur_array(gray_array, radius=2))
     focus_depth = gaussian_blur_array(sharp_edges, radius=3)
     
-    # MiDaS風の特徴統合（真の深度を推定）
-    # 各特徴の重み付き合成
-    depth_estimate = (
-        0.25 * brightness_depth +      # 明度手がかり
-        0.25 * contrast_depth +        # コントラスト手がかり
-        0.20 * texture_depth +         # テクスチャ手がかり
-        0.15 * position_depth +        # 位置手がかり
-        0.15 * focus_depth             # 焦点手がかり
-    )
+    # 各特徴を個別に正規化してから合成（滑らかなグラデーション生成）
+    features = [brightness_depth, contrast_depth, texture_depth, position_depth, focus_depth]
+    weights = [0.25, 0.25, 0.20, 0.15, 0.15]
     
-    # 正規化（0-1の範囲）
-    if depth_estimate.max() > depth_estimate.min():
-        normalized_depth = (depth_estimate - depth_estimate.min()) / (depth_estimate.max() - depth_estimate.min())
+    # 各特徴を0-1に正規化
+    normalized_features = []
+    for feature in features:
+        if feature.max() > feature.min():
+            norm_feature = (feature - feature.min()) / (feature.max() - feature.min())
+        else:
+            norm_feature = np.ones_like(feature) * 0.5
+        normalized_features.append(norm_feature)
+    
+    # 重み付き合成
+    depth_estimate = np.zeros_like(gray_array)
+    for i, (feature, weight) in enumerate(zip(normalized_features, weights)):
+        depth_estimate += weight * feature
+    
+    # 滑らかなグラデーション生成のための追加処理
+    # 1. ガウシアンスムージング
+    depth_smoothed = gaussian_blur_array(depth_estimate, radius=5)
+    
+    # 2. 最終正規化
+    if depth_smoothed.max() > depth_smoothed.min():
+        normalized_depth = (depth_smoothed - depth_smoothed.min()) / (depth_smoothed.max() - depth_smoothed.min())
     else:
-        normalized_depth = depth_estimate
+        normalized_depth = depth_smoothed
     
     # 深度推定アプリの統一表示仕様:
     # 近い物体 = 白い表示（高い値）
@@ -187,9 +199,9 @@ def midas_inspired_depth(image: Image.Image, original_size=None):
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     logger.info(f"MiDaS - Final depth map size: {depth_final.size}")
     
-    # 後処理: 軽いぼかしとコントラスト調整
-    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.0))
-    depth_final = ImageOps.autocontrast(depth_final, cutoff=1)
+    # 後処理: 滑らかなグラデーションを保持
+    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.0))
+    # autocontrastを削除して滑らかなグラデーションを保持
     
     return depth_final
 
@@ -386,9 +398,9 @@ def dpt_inspired_depth(image: Image.Image, original_size=None):
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     logger.info(f"DPT - Final depth map size: {depth_final.size}")
     
-    # 後処理
-    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.0))
-    depth_final = ImageOps.autocontrast(depth_final, cutoff=1)
+    # 後処理: 滑らかなグラデーションを保持
+    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.0))
+    # autocontrastを削除して滑らかなグラデーションを保持
     
     return depth_final
 
@@ -499,9 +511,9 @@ def depth_anything_inspired(image: Image.Image, original_size=None):
     depth_final = depth_pil.resize(target_size, Image.Resampling.BICUBIC)
     logger.info(f"DepthAnything - Final depth map size: {depth_final.size}")
     
-    # 後処理
-    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=1.5))
-    depth_final = ImageOps.autocontrast(depth_final)
+    # 後処理: 滑らかなグラデーションを保持
+    depth_final = depth_final.filter(ImageFilter.GaussianBlur(radius=2.5))
+    # autocontrastを削除して滑らかなグラデーションを保持
     
     return depth_final
 
@@ -687,8 +699,8 @@ def apply_grayscale_depth_map(depth_image):
     # 過度なコントラスト強化を避ける
     depth_enhanced = depth_image.copy()
     
-    # 軽微なコントラスト調整のみ適用
-    depth_enhanced = ImageOps.autocontrast(depth_enhanced, cutoff=2)
+    # 滑らかなグラデーションを保持するためautocontrastを無効化
+    # depth_enhanced = ImageOps.autocontrast(depth_enhanced, cutoff=2)
     
     # 直接RGBに変換（ピクセルループを避けて高速化）
     # グレースケールをRGBに変換
