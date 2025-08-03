@@ -221,7 +221,7 @@ export default function DepthViewer({ depthResult, isProcessing }: DepthViewerPr
         <h3 className="text-sm font-medium text-gray-900 mb-3">🎨 深度カラーマップ</h3>
         <div className="flex items-center space-x-4">
           <div className="flex-1">
-            <div className="h-4 bg-gradient-to-r from-white via-gray-500 to-black rounded"></div>
+            <div className="h-4 bg-gradient-to-r from-purple-600 via-blue-500 via-green-500 via-yellow-500 to-red-500 rounded"></div>
             <div className="flex justify-between text-xs text-gray-600 mt-1">
               <span>近い</span>
               <span>遠い</span>
